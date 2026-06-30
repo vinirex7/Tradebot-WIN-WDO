@@ -1,6 +1,6 @@
-# 🤖 Tradebot WIN-WDO — DualTrendScalper
+# 🤖 DualTrendScalper — Trading Bot WIN & WDO
 
-Bot de Day Trade automatizado para os minicontratos **WINFUT (Mini Índice)** e **WDOFUT (Mini Dólar)** na B3, operando via **MetaTrader 5** conectado à **XP Investimentos**.
+> **Day trade automatizado** nos minicontratos de Índice (WINFUT) e Dólar (WDOFUT) da B3, operando via MetaTrader 5 conectado à **XP Investimentos**.
 
 ---
 
@@ -9,172 +9,129 @@ Bot de Day Trade automatizado para os minicontratos **WINFUT (Mini Índice)** e 
 ```
 Tradebot-WIN-WDO/
 ├── Experts/
-│   └── DualTrendScalper.mq5          ← EA principal (copiar para MQL5/Experts/)
+│   └── DualTrendScalper.mq5      ← EA principal (cole em MQL5/Experts/)
 ├── Include/
-│   ├── SignalEngine.mqh              ← Motor de sinais (EMA + MACD + ATR)
-│   ├── RiskManager.mqh              ← Gestão de risco e travas diárias
-│   ├── TimeFilter.mqh               ← Filtros de janela horária B3
-│   └── TradeLogger.mqh              ← Log CSV de todas as operações
+│   ├── SignalEngine.mqh            ← Motor de sinais (EMA + MACD + ATR)
+│   ├── RiskManager.mqh             ← Gestão de risco e travas diárias
+│   ├── TimeFilter.mqh              ← Filtro de janelas horárias
+│   └── TradeLogger.mqh             ← Logger CSV automático
 ├── Scripts/
-│   └── VerificarAmbiente.mq5        ← Diagnóstico pré-live (execute primeiro!)
+│   └── VerificarAmbiente.mq5      ← Diagnóstico pré-live
 ├── Sets/
 │   └── DualTrendScalper_Default.set ← Parâmetros + faixas de otimização
 ├── Tests/
-│   ├── BacktestConfig_WINFUT.ini    ← Configuração Strategy Tester (WIN)
-│   └── BacktestConfig_WDOFUT.ini    ← Configuração Strategy Tester (WDO)
-└── README.md
+│   ├── BacktestConfig_WINFUT.ini   ← Config do Strategy Tester (WIN)
+│   └── BacktestConfig_WDOFUT.ini   ← Config do Strategy Tester (WDO)
+└── backtest/                        ← Backtest Python (branch infra-1)
 ```
 
 ---
 
-## 🚀 Instalação Rápida
-
-### 1. Pré-requisitos
-
-- MetaTrader 5 instalado via portal XP Investimentos
-- Conta habilitada: **Minha Conta → Ferramentas e Serviços → MetaTrader 5**
-- Servidores disponíveis:
-  - **Demo:** `demo.mt5.xpi.com.br:443`
-  - **Real:** `mt5.xpi.com.br:443`
-
-### 2. Instalar arquivos no MT5
-
-Localize a pasta de dados do MT5:
-**Arquivo → Abrir pasta de dados** → navegue até `MQL5/`
-
-```
-MQL5/
-├── Experts/   ← copie DualTrendScalper.mq5
-└── Include/   ← copie os 4 arquivos .mqh
-```
-
-Depois, no MetaEditor (F4):
-1. Abra `DualTrendScalper.mq5`
-2. Pressione **F7** (Compilar)
-3. Verifique: **0 erros** no painel inferior
-
-### 3. Conectar à XP no MT5
-
-1. **Arquivo → Abrir uma conta**
-2. Pesquise `XP` na lista de corretoras
-3. Selecione **XP Investimentos** → Avançar
-4. Escolha **"Conectar a uma conta existente"**
-5. Informe seu **login** e **senha** enviados por e-mail pela XP
-6. Servidor real: `mt5.xpi.com.br:443`
-
-### 4. Adicionar WINFUT e WDOFUT
-
-1. **Ctrl+U** → Janela de Símbolos
-2. Expanda `Futuros Minicontratos` (ou pesquise `WIN`, `WDO`)
-3. Duplo clique para adicionar à Observação do Mercado
-
-> ⚠️ Use sempre o contrato com maior volume aberto (liquidez). Verifique o vencimento ativo.
-
----
-
-## ⚙️ Ativação do EA no Gráfico (Live)
-
-1. Abra gráfico **WINFUT M5**
-2. Habilite: botão **AutoTrading** na barra de ferramentas
-3. Verifique: **Ferramentas → Opções → Expert Advisors** → ✅ Permitir trading automatizado
-4. Arraste `DualTrendScalper` do Navegador para o gráfico
-5. Clique **Carregar** → selecione `Sets/DualTrendScalper_Default.set`
-6. Confirme: **`:)`** no canto superior direito do gráfico
-
-> O EA opera tanto WIN quanto WDO a partir de **um único gráfico**.
-
----
-
-## 🔬 Backtest e Walk-Forward
-
-### Backtest básico
-
-1. **Ctrl+R** → Strategy Tester
-2. Configure:
-   - Expert: `DualTrendScalper`
-   - Símbolo: `WINFUT` (depois repita para WDOFUT)
-   - Período: `M5` | Modelagem: `Every tick (ticks reais)`
-   - Datas: `2023.01.02` → `2025.12.31`
-   - Depósito: `5000 BRL`
-3. Clique **Iniciar**
-
-### Walk-Forward (validação de robustez)
-
-1. Ative **Otimização** → clique **Avançar**
-2. Data forward: `2025.07.01` (75% in-sample / 25% out-of-sample)
-3. Critério: **Critério personalizado** (score = Sharpe × Profit Factor)
-4. **WFE (Walk-Forward Efficiency) ≥ 0.50 = estratégia robusta**
-
-### Parâmetros otimizáveis
-
-| Parâmetro | Padrão | Min | Max | Passo |
-|-----------|--------|-----|-----|-------|
-| EMA Rápida | 9 | 5 | 15 | 3 |
-| EMA Lenta | 21 | 15 | 30 | 3 |
-| ATR Mult SL | 1.2 | 0.8 | 2.0 | 0.2 |
-
----
-
-## 📊 Estratégia: Dual Trend Scalper
-
-### Lógica de Entrada
-
-```
-COMPRA:
-  ✅ EMA 9 cruza acima da EMA 21 (M5)
-  ✅ Preço > EMA 50 (M15) — tendência de alta
-  ✅ Histograma MACD (12,26,9) > 0
-  ✅ ATR atual ≥ 50% da média ATR 20 — volatilidade ok
-  ✅ Dentro da janela horária (9h30–12h ou 14h–16h30)
-
-VENDA: condições inversas
-```
-
-### Gestão
-
-| Feature | Configuração |
-|---------|--------------|
-| Stop Loss | 1.2 × ATR(14) |
-| Take Profit | SL × 2.0 (R:R = 1:2) |
-| Break-even | Ativa em 30% do alvo → SL para entrada |
-| Trailing stop | Ativa em 50% do alvo → SL segue 1×ATR |
-| Fechamento forçado | Após 18h10 |
-
-### Risco (Capital R$ 5.000)
+## ⚙️ Estratégia
 
 | Parâmetro | Valor |
 |-----------|-------|
-| Risco/trade | R$ 50 (1%) |
-| Trava de perda diária | R$ 150 (3%) |
-| Meta de ganho diário | R$ 300 (6%) |
+| Timeframe operacional | M5 |
+| Filtro de tendência | EMA 50 no M15 |
+| Entrada | Cruzamento EMA 9/21 confirmado pelo MACD |
+| Stop Loss | 1.2 × ATR(14) |
+| Take Profit | 2.0 × SL (RR 1:2) |
+| Break-even | Ativado a 30% do alvo |
+| Trailing stop | Ativado a 50% do alvo, passo = 1 ATR |
+| Janelas | 9h30–12h e 14h–16h30 |
+| Fechamento forçado | 18h10 |
+| Trava de perda diária | R$ 150 |
+| Meta de ganho diário | R$ 300 |
 
 ---
 
-## 🔌 Servidores XP Investimentos
+## 🚀 Instalação no MetaTrader 5
 
-| Ambiente | Servidor |
-|----------|----------|
-| Demo | `demo.mt5.xpi.com.br:443` |
-| Real | `mt5.xpi.com.br:443` |
+### 1. Abrir pasta de dados
+```
+MT5 → Arquivo → Abrir pasta de dados → MQL5/
+```
+
+### 2. Copiar arquivos
+```
+Experts/DualTrendScalper.mq5   → MQL5/Experts/
+Include/*.mqh                   → MQL5/Include/
+Scripts/VerificarAmbiente.mq5  → MQL5/Scripts/
+```
+
+### 3. Compilar
+```
+MetaEditor → Abrir DualTrendScalper.mq5 → F7
+Resultado esperado: 0 erros, 0 avisos críticos
+```
+
+### 4. Conectar à XP Investimentos
+```
+Servidor : mt5.xpi.com.br:443
+Login    : (seu número de conta)
+Senha    : (sua senha MT5 XP)
+```
+
+### 5. Verificar ambiente (OBRIGATÓRIO)
+```
+MT5 → Navigator → Scripts → VerificarAmbiente → Executar
+Verificar no log: Trading PERMITIDO, símbolos OK, latência < 150ms
+```
 
 ---
 
-## 📋 Checklist Pré-Live
+## 📊 Backtest (MT5 Strategy Tester)
 
-- [ ] Compilou sem erros (0 errors no MetaEditor)
-- [ ] Script `VerificarAmbiente` mostra ✅ em todos os itens
-- [ ] Backtest com `Every tick` por ≥ 1 ano
-- [ ] Walk-Forward Efficiency ≥ 0.50
-- [ ] Testado em conta **DEMO** por mínimo 30 dias
-- [ ] AutoTrading habilitado no terminal
-- [ ] EA ativo no gráfico (`:)` visível)
+1. `MT5 → Exibir → Strategy Tester`
+2. Carregar `Sets/DualTrendScalper_Default.set` na aba **Entradas**
+3. Copiar conteúdo de `Tests/BacktestConfig_WINFUT.ini` nas configurações
+4. Modelo: **Every Tick** | Período: M5 | 2023–2025
+5. Executar e verificar métricas mínimas:
+
+| Métrica | Mínimo aceitável |
+|---------|------------------|
+| Profit Factor | ≥ 1.4 |
+| Drawdown máx. | ≤ 15% |
+| Sharpe Ratio | ≥ 0.8 |
+| Recovery Factor | ≥ 2.0 |
+| Walk-Forward Efficiency | ≥ 0.50 |
 
 ---
 
-## ⚠️ Aviso de Risco
+## 🔄 Walk-Forward
 
-Trading automatizado envolve risco de perda total do capital. Este projeto é para fins **educacionais**. Sempre teste em demo antes de conta real.
+| Período | Datas |
+|---------|-------|
+| In-Sample (IS) | 2023-01-02 → 2025-03-31 |
+| Out-of-Sample (OOS) | 2025-04-01 → 2025-12-31 |
+| WFE = Lucro_OOS / Lucro_IS | ≥ 0.50 |
 
 ---
 
-*DualTrendScalper v1.00 | [github.com/vinirex7/Tradebot-WIN-WDO](https://github.com/vinirex7/Tradebot-WIN-WDO)*
+## 🐍 Backtest Python (branch `infra-1`)
+
+Simulação do bot em Python com dados reais via `yfinance`, executável no **Termius**:
+
+```bash
+git checkout infra-1
+cd backtest
+pip install -r requirements.txt
+python run_backtest.py --symbol WIN --start 2023-01-02 --end 2025-12-31
+python run_backtest.py --symbol WDO --start 2023-01-02 --end 2025-12-31
+```
+
+---
+
+## ⚠️ Avisos Importantes
+
+- **Teste em conta demo por no mínimo 30 dias** antes de conta real
+- O bot **não garante lucro** — mercados são imprevisíveis
+- Revise os parâmetros mensalmente
+- Este projeto é **educacional** — não constitui recomendação de investimento
+- Consulte um profissional certificado (CNPI) antes de operar
+
+---
+
+## 📄 Licença
+
+MIT License — uso livre com atribuição.
