@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
-//|  SignalEngine.mqh — Motor de sinais EMA + MACD + ATR            |
-//|  DualTrendScalper | WIN & WDO | B3                              |
+//|  SignalEngine.mqh — Motor de Sinais DualTrendScalper            |
+//|  Indicadores: EMA 9/21 cruzamento + filtro EMA 50 (M15) + MACD |
 //+------------------------------------------------------------------+
 #pragma once
 
@@ -11,160 +11,144 @@ struct STradeParams
    double entry;
    double sl;
    double tp;
-   double sl_dist_pts;
    double atr;
+   double sl_dist_pts;
 };
 
 class CSignalEngine
 {
 private:
+   int    m_h_ema_r[2];   // EMA rápida  M5
+   int    m_h_ema_l[2];   // EMA lenta   M5
+   int    m_h_ema_t[2];   // EMA tendência M15
+   int    m_h_macd[2];    // MACD M5
+   int    m_h_atr[2];     // ATR M5
+
    int    m_ema_r, m_ema_l, m_ema_t;
-   int    m_macd_f, m_macd_s, m_macd_sig;
-   int    m_atr_per;
-   double m_atr_mult_sl;
-   double m_rr_ratio;
+   int    m_macd_r, m_macd_l, m_macd_s;
+   int    m_atr_p;
+   double m_atr_mult;
+   double m_rr;
 
-   int    m_hEmaR_WIN, m_hEmaL_WIN, m_hEmaT_WIN;
-   int    m_hMACD_WIN, m_hATR_WIN;
-   int    m_hEmaR_WDO, m_hEmaL_WDO, m_hEmaT_WDO;
-   int    m_hMACD_WDO, m_hATR_WDO;
+   string m_sym[2];
 
-   string m_sym1, m_sym2;
-
-   bool GetHandles(const string sym, int &hR, int &hL, int &hT, int &hM, int &hA)
-   {
-      hR = iMA(sym, PERIOD_M5,  m_ema_r,   0, MODE_EMA, PRICE_CLOSE);
-      hL = iMA(sym, PERIOD_M5,  m_ema_l,   0, MODE_EMA, PRICE_CLOSE);
-      hT = iMA(sym, PERIOD_M15, m_ema_t,   0, MODE_EMA, PRICE_CLOSE);
-      hM = iMACD(sym, PERIOD_M5, m_macd_f, m_macd_s, m_macd_sig, PRICE_CLOSE);
-      hA = iATR(sym, PERIOD_M5, m_atr_per);
-      return(hR != INVALID_HANDLE && hL != INVALID_HANDLE &&
-             hT != INVALID_HANDLE && hM != INVALID_HANDLE && hA != INVALID_HANDLE);
-   }
-
-   double BufVal(int handle, int buf, int shift)
-   {
-      double arr[];
-      ArraySetAsSeries(arr, true);
-      if(CopyBuffer(handle, buf, shift, 1, arr) <= 0) return 0.0;
-      return arr[0];
-   }
-
-   bool GetHandlesForSym(const string sym,
-                         int &hR, int &hL, int &hT, int &hM, int &hA)
-   {
-      if(sym == m_sym1) { hR=m_hEmaR_WIN; hL=m_hEmaL_WIN; hT=m_hEmaT_WIN; hM=m_hMACD_WIN; hA=m_hATR_WIN; return true; }
-      if(sym == m_sym2) { hR=m_hEmaR_WDO; hL=m_hEmaL_WDO; hT=m_hEmaT_WDO; hM=m_hMACD_WDO; hA=m_hATR_WDO; return true; }
-      return false;
-   }
+   int IdxSym(const string s) { return (s == m_sym[0]) ? 0 : 1; }
 
 public:
-   bool Init(int emaR, int emaL, int emaT,
-             int macdF, int macdS, int macdSig,
-             int atrPer, double atrMult, double rrRatio)
+   bool Init(int ema_r, int ema_l, int ema_t,
+             int macd_r, int macd_l, int macd_s,
+             int atr_p, double atr_mult, double rr)
    {
-      m_ema_r=emaR; m_ema_l=emaL; m_ema_t=emaT;
-      m_macd_f=macdF; m_macd_s=macdS; m_macd_sig=macdSig;
-      m_atr_per=atrPer; m_atr_mult_sl=atrMult; m_rr_ratio=rrRatio;
-      m_sym1 = "WINFUT"; m_sym2 = "WDOFUT";
+      m_ema_r = ema_r; m_ema_l = ema_l; m_ema_t = ema_t;
+      m_macd_r = macd_r; m_macd_l = macd_l; m_macd_s = macd_s;
+      m_atr_p = atr_p; m_atr_mult = atr_mult; m_rr = rr;
 
-      if(!GetHandles(m_sym1, m_hEmaR_WIN, m_hEmaL_WIN, m_hEmaT_WIN, m_hMACD_WIN, m_hATR_WIN))
-      { Print("ERRO: handles inválidos para ", m_sym1); return false; }
-      if(!GetHandles(m_sym2, m_hEmaR_WDO, m_hEmaL_WDO, m_hEmaT_WDO, m_hMACD_WDO, m_hATR_WDO))
-      { Print("ERRO: handles inválidos para ", m_sym2); return false; }
+      m_sym[0] = "WINFUT"; m_sym[1] = "WDOFUT";
+
+      for(int i = 0; i < 2; i++)
+      {
+         m_h_ema_r[i] = iMA(m_sym[i], PERIOD_M5,  m_ema_r, 0, MODE_EMA, PRICE_CLOSE);
+         m_h_ema_l[i] = iMA(m_sym[i], PERIOD_M5,  m_ema_l, 0, MODE_EMA, PRICE_CLOSE);
+         m_h_ema_t[i] = iMA(m_sym[i], PERIOD_M15, m_ema_t, 0, MODE_EMA, PRICE_CLOSE);
+         m_h_macd[i]  = iMACD(m_sym[i], PERIOD_M5, m_macd_r, m_macd_l, m_macd_s, PRICE_CLOSE);
+         m_h_atr[i]   = iATR(m_sym[i], PERIOD_M5,  m_atr_p);
+
+         if(m_h_ema_r[i] == INVALID_HANDLE || m_h_ema_l[i] == INVALID_HANDLE ||
+            m_h_ema_t[i] == INVALID_HANDLE || m_h_macd[i]  == INVALID_HANDLE ||
+            m_h_atr[i]   == INVALID_HANDLE)
+         {
+            Print("ERRO: Falha ao criar indicadores para ", m_sym[i]);
+            return false;
+         }
+      }
       return true;
    }
 
    void Deinit()
    {
-      int handles[] = { m_hEmaR_WIN, m_hEmaL_WIN, m_hEmaT_WIN, m_hMACD_WIN, m_hATR_WIN,
-                        m_hEmaR_WDO, m_hEmaL_WDO, m_hEmaT_WDO, m_hMACD_WDO, m_hATR_WDO };
-      for(int i = 0; i < ArraySize(handles); i++)
-         if(handles[i] != INVALID_HANDLE) IndicatorRelease(handles[i]);
+      for(int i = 0; i < 2; i++)
+      {
+         IndicatorRelease(m_h_ema_r[i]);
+         IndicatorRelease(m_h_ema_l[i]);
+         IndicatorRelease(m_h_ema_t[i]);
+         IndicatorRelease(m_h_macd[i]);
+         IndicatorRelease(m_h_atr[i]);
+      }
+   }
+
+   double GetATR(const string sym)
+   {
+      int i = IdxSym(sym);
+      double buf[1];
+      ArraySetAsSeries(buf, true);
+      if(CopyBuffer(m_h_atr[i], 0, 1, 1, buf) <= 0) return 0;
+      return buf[0];
    }
 
    ENUM_SIGNAL GetSinal(const string sym)
    {
-      int hR, hL, hT, hM, hA;
-      if(!GetHandlesForSym(sym, hR, hL, hT, hM, hA)) return SIGNAL_NONE;
+      int i = IdxSym(sym);
+      double ema_r[2], ema_l[2], ema_t[1], macd_m[2], macd_s[2];
+      ArraySetAsSeries(ema_r,  true);
+      ArraySetAsSeries(ema_l,  true);
+      ArraySetAsSeries(ema_t,  true);
+      ArraySetAsSeries(macd_m, true);
+      ArraySetAsSeries(macd_s, true);
 
-      double emaR_cur  = BufVal(hR, 0, 0);
-      double emaR_prev = BufVal(hR, 0, 1);
-      double emaL_cur  = BufVal(hL, 0, 0);
-      double emaL_prev = BufVal(hL, 0, 1);
-      double emaT      = BufVal(hT, 0, 0);
-      double macd_main = BufVal(hM, 0, 0);
-      double macd_sig  = BufVal(hM, 1, 0);
-      double atr       = BufVal(hA, 0, 0);
+      if(CopyBuffer(m_h_ema_r[i], 0, 1, 2, ema_r)  <= 0) return SIGNAL_NONE;
+      if(CopyBuffer(m_h_ema_l[i], 0, 1, 2, ema_l)  <= 0) return SIGNAL_NONE;
+      if(CopyBuffer(m_h_ema_t[i], 0, 1, 1, ema_t)  <= 0) return SIGNAL_NONE;
+      if(CopyBuffer(m_h_macd[i],  MAIN_LINE,   1, 2, macd_m) <= 0) return SIGNAL_NONE;
+      if(CopyBuffer(m_h_macd[i],  SIGNAL_LINE, 1, 2, macd_s) <= 0) return SIGNAL_NONE;
 
-      if(emaR_cur == 0 || emaL_cur == 0 || atr == 0) return SIGNAL_NONE;
+      double preco = SymbolInfoDouble(sym, SYMBOL_LAST);
 
-      double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
-      double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+      // Cruzamento bullish: EMA rapida cruzou acima EMA lenta
+      bool crossUp   = ema_r[1] <= ema_l[1] && ema_r[0] > ema_l[0];
+      // Cruzamento bearish
+      bool crossDown = ema_r[1] >= ema_l[1] && ema_r[0] < ema_l[0];
+      // Filtro de tendência M15
+      bool tendUp    = preco > ema_t[0];
+      bool tendDown  = preco < ema_t[0];
+      // MACD confirmação
+      bool macdBull  = macd_m[0] > macd_s[0] && macd_m[0] > 0;
+      bool macdBear  = macd_m[0] < macd_s[0] && macd_m[0] < 0;
 
-      // Filtro ATR: volatilidade mínima
-      double atrArr[];
-      ArraySetAsSeries(atrArr, true);
-      CopyBuffer(hA, 0, 0, 20, atrArr);
-      double atrMed = 0;
-      for(int i = 0; i < 20; i++) atrMed += atrArr[i];
-      atrMed /= 20.0;
-      if(atr < atrMed * 0.5) return SIGNAL_NONE;
-
-      bool cruzeAlta  = (emaR_prev < emaL_prev) && (emaR_cur > emaL_cur);
-      bool cruzeBaixa = (emaR_prev > emaL_prev) && (emaR_cur < emaL_cur);
-      bool tendAlta   = ask > emaT;
-      bool tendBaixa  = bid < emaT;
-      bool macdPos    = (macd_main - macd_sig) > 0;
-      bool macdNeg    = (macd_main - macd_sig) < 0;
-
-      if(cruzeAlta  && tendAlta  && macdPos) return SIGNAL_BUY;
-      if(cruzeBaixa && tendBaixa && macdNeg) return SIGNAL_SELL;
+      if(crossUp   && tendUp   && macdBull) return SIGNAL_BUY;
+      if(crossDown && tendDown && macdBear) return SIGNAL_SELL;
 
       return SIGNAL_NONE;
    }
 
    bool GetTradeParams(const string sym, ENUM_SIGNAL sinal, STradeParams &p)
    {
-      int hR, hL, hT, hM, hA;
-      if(!GetHandlesForSym(sym, hR, hL, hT, hM, hA)) return false;
-
-      double atr  = BufVal(hA, 0, 0);
-      double pt   = SymbolInfoDouble(sym, SYMBOL_POINT);
-      double ask  = SymbolInfoDouble(sym, SYMBOL_ASK);
-      double bid  = SymbolInfoDouble(sym, SYMBOL_BID);
+      int    i    = IdxSym(sym);
       int    dig  = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+      double tick = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double bid  = SymbolInfoDouble(sym, SYMBOL_BID);
+      double ask  = SymbolInfoDouble(sym, SYMBOL_ASK);
+      double atr  = GetATR(sym);
 
-      double slDist = atr * m_atr_mult_sl;
-      double tpDist = slDist * m_rr_ratio;
+      if(atr <= 0) return false;
 
-      p.atr = atr;
+      double slDist = atr * m_atr_mult;
+      double tpDist = slDist * m_rr;
 
       if(sinal == SIGNAL_BUY)
       {
          p.entry      = ask;
          p.sl         = NormalizeDouble(ask - slDist, dig);
          p.tp         = NormalizeDouble(ask + tpDist, dig);
-         p.sl_dist_pts = slDist / pt;
       }
       else
       {
          p.entry      = bid;
          p.sl         = NormalizeDouble(bid + slDist, dig);
          p.tp         = NormalizeDouble(bid - tpDist, dig);
-         p.sl_dist_pts = slDist / pt;
       }
 
-      double spread = SymbolInfoInteger(sym, SYMBOL_SPREAD) * pt;
-      if(tpDist <= spread * 3) return false;
-
+      p.atr        = atr;
+      p.sl_dist_pts = slDist / tick;
       return true;
-   }
-
-   double GetATR(const string sym)
-   {
-      int hR, hL, hT, hM, hA;
-      if(!GetHandlesForSym(sym, hR, hL, hT, hM, hA)) return 0.0;
-      return BufVal(hA, 0, 0);
    }
 };

@@ -1,61 +1,71 @@
 //+------------------------------------------------------------------+
-//|  TradeLogger.mqh — Registro CSV de operações                   |
+//|  TradeLogger.mqh — Logger de Trades DualTrendScalper           |
+//|  Grava CSV em MQL5/Files/                                       |
 //+------------------------------------------------------------------+
 #pragma once
 
 class CTradeLogger
 {
 private:
+   string m_file;
    int    m_handle;
-   string m_filename;
    long   m_magic;
 
 public:
-   void Init(const string baseName, long magic)
+   void Init(const string base, long magic)
    {
-      m_magic    = magic;
-      m_filename = baseName + "_" + TimeToString(TimeCurrent(), TIME_DATE) + ".csv";
-      StringReplace(m_filename, ".", "-");
-      m_handle = FileOpen(m_filename, FILE_WRITE|FILE_CSV|FILE_COMMON, ',');
-      if(m_handle == INVALID_HANDLE) { Print("LOGGER ERRO: ", m_filename); return; }
-      FileWrite(m_handle, "Timestamp", "Tipo", "Mensagem");
-      Print("Logger iniciado: ", m_filename);
+      m_magic = magic;
+      m_file  = base + "_" + TimeToString(TimeCurrent(), TIME_DATE) + ".csv";
+      m_file  = StringReplace(m_file, ".", "-") == 0 ? m_file : m_file;
+
+      m_handle = FileOpen(m_file, FILE_WRITE|FILE_CSV|FILE_ANSI, ';');
+      if(m_handle == INVALID_HANDLE)
+      {
+         Print("Logger: nao foi possivel abrir arquivo: ", m_file);
+         return;
+      }
+      FileWrite(m_handle, "DateTime","Mensagem");
+      Print("Logger iniciado: ", m_file);
    }
 
    void LogTrade(const string msg)
    {
       if(m_handle == INVALID_HANDLE) return;
-      FileWrite(m_handle,
-         TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES|TIME_SECONDS),
-         "TRADE", msg);
+      FileWrite(m_handle, TimeToString(TimeCurrent()), msg);
    }
 
-   void LogDeal(ulong deal, double profit)
+   void LogDeal(ulong ticket, double profit)
    {
       if(m_handle == INVALID_HANDLE) return;
-      string sym   = HistoryDealGetString(deal, DEAL_SYMBOL);
-      double price = HistoryDealGetDouble(deal, DEAL_PRICE);
-      double vol   = HistoryDealGetDouble(deal, DEAL_VOLUME);
-      string entry = (HistoryDealGetInteger(deal, DEAL_ENTRY) == DEAL_ENTRY_IN) ? "ENTRADA" : "SAIDA";
-      string msg   = StringFormat("%s | %s | Preco:%.2f | Vol:%.0f | Profit:R$%.2f",
-                                  sym, entry, price, vol, profit);
-      FileWrite(m_handle,
-         TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES|TIME_SECONDS),
-         "DEAL", msg);
+      string sym    = HistoryDealGetString(ticket, DEAL_SYMBOL);
+      long   tipo   = HistoryDealGetInteger(ticket, DEAL_TYPE);
+      double preco  = HistoryDealGetDouble(ticket, DEAL_PRICE);
+      string dir    = (tipo == DEAL_TYPE_BUY) ? "BUY" : "SELL";
+      string msg    = StringFormat("DEAL|%s|%s|%.2f|PNL:%.2f",
+                      sym, dir, preco, profit);
+      FileWrite(m_handle, TimeToString(TimeCurrent()), msg);
    }
 
    void LogDiaSeparator(const string data)
    {
-      if(m_handle != INVALID_HANDLE) { FileClose(m_handle); m_handle = INVALID_HANDLE; }
-      m_filename = "DTS_Log_" + data + ".csv";
-      StringReplace(m_filename, ".", "-");
-      m_handle = FileOpen(m_filename, FILE_WRITE|FILE_CSV|FILE_COMMON, ',');
+      if(m_handle == INVALID_HANDLE) return;
+      // Reabrir arquivo com data nova
+      FileClose(m_handle);
+      string novo = StringSubstr(m_file, 0, StringLen(m_file)-14) +
+                    data + ".csv";
+      m_file   = novo;
+      m_handle = FileOpen(m_file, FILE_WRITE|FILE_CSV|FILE_ANSI, ';');
       if(m_handle != INVALID_HANDLE)
-         FileWrite(m_handle, "Timestamp", "Tipo", "Mensagem");
+         FileWrite(m_handle, "DateTime","Mensagem");
    }
 
    void Flush()
    {
-      if(m_handle != INVALID_HANDLE) { FileFlush(m_handle); FileClose(m_handle); m_handle = INVALID_HANDLE; }
+      if(m_handle != INVALID_HANDLE)
+      {
+         FileFlush(m_handle);
+         FileClose(m_handle);
+         m_handle = INVALID_HANDLE;
+      }
    }
 };
