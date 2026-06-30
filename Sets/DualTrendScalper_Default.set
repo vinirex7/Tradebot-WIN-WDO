@@ -1,0 +1,47 @@
+; DualTrendScalper — Configuração Padrão (Conta REAL XP Investimentos)
+; Capital: R$ 5.000 | Risco 1%/trade | Trava 3%
+; Data: 2026-06-30
+
+Inp_Simbolo1=WINFUT
+Inp_Simbolo2=WDOFUT
+Inp_EMA_Rapida=9
+Inp_EMA_Rapida,F=1
+Inp_EMA_Rapida,1=5
+Inp_EMA_Rapida,2=15
+Inp_EMA_Rapida,3=3
+Inp_EMA_Lenta=21
+Inp_EMA_Lenta,F=1
+Inp_EMA_Lenta,1=15
+Inp_EMA_Lenta,2=30
+Inp_EMA_Lenta,3=3
+Inp_EMA_Tendencia=50
+Inp_MACD_Rapida=12
+Inp_MACD_Lenta=26
+Inp_MACD_Sinal=9
+Inp_ATR_Periodo=14
+Inp_Risco_Reais=50.0
+Inp_Perda_Diaria=150.0
+Inp_Ganho_Diario=300.0
+Inp_ATR_Mult_SL=1.2
+Inp_ATR_Mult_SL,F=1
+Inp_ATR_Mult_SL,1=0.8
+Inp_ATR_Mult_SL,2=2.0
+Inp_ATR_Mult_SL,3=0.2
+Inp_RR_Ratio=2.0
+Inp_UseTrailing=true
+Inp_UseBreakEven=true
+Inp_BE_Trigger=0.30
+Inp_Trail_Trigger=0.50
+Inp_Hora_Ini_1=9
+Inp_Min_Ini_1=30
+Inp_Hora_Fim_1=12
+Inp_Min_Fim_1=0
+Inp_Hora_Ini_2=14
+Inp_Min_Ini_2=0
+Inp_Hora_Fim_2=16
+Inp_Min_Fim_2=30
+Inp_Hora_FimPregao=18
+Inp_Min_FimPregao=10
+Inp_MagicNumber=202601
+Inp_LogEnabled=true
+Inp_LogFile=DTS_Log
