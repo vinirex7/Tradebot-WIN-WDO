@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+
+import pandas as pd
 from pathlib import Path
 
 from dts_engine import DTSConfig, load_ohlcv, load_yfinance, run_backtest
@@ -50,6 +52,7 @@ def main():
         data = load_ohlcv(args.csv)
     else:
         data = load_yfinance(args.symbol, args.start, args.end, interval="5m")
+    data = data.loc[(data.index >= pd.Timestamp(args.start)) & (data.index <= pd.Timestamp(args.end))].copy()
 
     trades, summary = run_backtest(data, cfg)
     outdir = Path(args.output)
