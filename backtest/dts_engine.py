@@ -1,18 +1,12 @@
 """Python backtest engine for DualTrendScalper.
 
-This file mirrors the live MQL5 branch `infra-1` logic:
-- M5 execution timeframe
-- EMA 9/21 cross on the last closed M5 candle
-- EMA 50 trend filter from M15
-- MACD(12,26,9) confirmation
-- ATR(14) dynamic stop, RR take profit
-- break-even at 30% of target, trailing at 50% of target with 1 ATR
-- trading windows 09:30-12:00 and 14:00-16:30
-- forced flat at 18:10
-- daily loss lock and daily profit lock
+Espelha a lógica live da branch infra-1:
+M5, filtro EMA50 M15, cruzamento EMA9/21, MACD(12,26,9), ATR(14),
+SL=ATR*mult, TP=SL*RR, break-even 30%, trailing 50%, janelas 09:30-12:00 e
+14:00-16:30, fechamento 18:10, trava diária de perda e meta diária.
 
-The simulator is intentionally conservative: the signal is evaluated on the
-closed bar and the entry is made on the next bar open to avoid look-ahead bias.
+O sinal é calculado na última barra fechada e a entrada ocorre na abertura da
+barra seguinte para evitar look-ahead bias.
 """
 from __future__ import annotations
 
@@ -45,8 +39,6 @@ class DTSConfig:
     use_trailing: bool = True
     start_cash: float = 5000.0
     contracts: int = 1
-    tick_value: float = 1.0
-    tick_size: float = 5.0
     point_value: float = 0.20
     fee_round_trip: float = 0.50
     session1_start: str = "09:30"
@@ -59,9 +51,9 @@ class DTSConfig:
     def for_symbol(cls, symbol: str, **kwargs) -> "DTSConfig":
         s = symbol.upper()
         if s in {"WIN", "WINFUT"}:
-            return cls(symbol="WINFUT", tick_value=1.0, tick_size=5.0, point_value=0.20, fee_round_trip=0.50, **kwargs)
+            return cls(symbol="WINFUT", point_value=0.20, fee_round_trip=0.50, **kwargs)
         if s in {"WDO", "WDOFUT"}:
-            return cls(symbol="WDOFUT", tick_value=5.0, tick_size=0.5, point_value=10.0, fee_round_trip=2.40, atr_mult_sl=1.5, **kwargs)
+            return cls(symbol="WDOFUT", point_value=10.0, fee_round_trip=2.40, **kwargs)
         return cls(symbol=s, **kwargs)
 
     def to_dict(self) -> dict:
@@ -95,13 +87,7 @@ def load_ohlcv(csv_path: str | Path) -> pd.DataFrame:
 
 def load_yfinance(symbol: str, start: str, end: str, interval: str = "5m") -> pd.DataFrame:
     import yfinance as yf
-
-    ticker_map = {
-        "WIN": "WIN=F",
-        "WINFUT": "WIN=F",
-        "WDO": "BRL=X",
-        "WDOFUT": "BRL=X",
-    }
+    ticker_map = {"WIN": "WIN=F", "WINFUT": "WIN=F", "WDO": "BRL=X", "WDOFUT": "BRL=X"}
     ticker = ticker_map.get(symbol.upper(), symbol)
     df = yf.download(ticker, start=start, end=end, interval=interval, auto_adjust=False, progress=False)
     if df.empty:
@@ -131,11 +117,9 @@ def add_indicators(df_m5: pd.DataFrame, cfg: DTSConfig) -> pd.DataFrame:
     df["ema_fast"] = ema(df["close"], cfg.ema_fast)
     df["ema_slow"] = ema(df["close"], cfg.ema_slow)
     macd_line = ema(df["close"], cfg.macd_fast) - ema(df["close"], cfg.macd_slow)
-    sig_line = ema(macd_line, cfg.macd_signal)
     df["macd_line"] = macd_line
-    df["macd_signal"] = sig_line
+    df["macd_signal"] = ema(macd_line, cfg.macd_signal)
     df["atr"] = atr(df, cfg.atr_period)
-
     m15 = df.resample("15min", label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min", "close": "last"
     }).dropna()
@@ -161,19 +145,19 @@ def risk_is_valid(sl_dist_price: float, cfg: DTSConfig) -> bool:
 
 
 def signal_on_closed_bar(df: pd.DataFrame, i: int) -> int:
-    """Signal using the last closed candle at i-1 and previous candle at i-2."""
     if i < 2:
         return 0
     cur = df.iloc[i - 1]
     prev = df.iloc[i - 2]
-    if pd.isna(cur[["ema_fast", "ema_slow", "ema_trend_m15", "macd_line", "macd_signal", "atr"]]).any():
+    cols = ["ema_fast", "ema_slow", "ema_trend_m15", "macd_line", "macd_signal", "atr"]
+    if pd.isna(cur[cols]).any():
         return 0
-    cross_up = prev.ema_fast <= prev.ema_slow and cur.ema_fast > cur.ema_slow
-    cross_dn = prev.ema_fast >= prev.ema_slow and cur.ema_fast < cur.ema_slow
-    trend_up = cur.close > cur.ema_trend_m15
-    trend_dn = cur.close < cur.ema_trend_m15
-    macd_bull = cur.macd_line > cur.macd_signal and cur.macd_line > 0
-    macd_bear = cur.macd_line < cur.macd_signal and cur.macd_line < 0
+    cross_up = prev["ema_fast"] <= prev["ema_slow"] and cur["ema_fast"] > cur["ema_slow"]
+    cross_dn = prev["ema_fast"] >= prev["ema_slow"] and cur["ema_fast"] < cur["ema_slow"]
+    trend_up = cur["close"] > cur["ema_trend_m15"]
+    trend_dn = cur["close"] < cur["ema_trend_m15"]
+    macd_bull = cur["macd_line"] > cur["macd_signal"] and cur["macd_line"] > 0
+    macd_bear = cur["macd_line"] < cur["macd_signal"] and cur["macd_line"] < 0
     if cross_up and trend_up and macd_bull:
         return 1
     if cross_dn and trend_dn and macd_bear:
@@ -183,7 +167,7 @@ def signal_on_closed_bar(df: pd.DataFrame, i: int) -> int:
 
 def run_backtest(df_m5: pd.DataFrame, cfg: DTSConfig) -> tuple[pd.DataFrame, dict]:
     df = add_indicators(df_m5, cfg).dropna().copy()
-    trades = []
+    trades: list[dict] = []
     cash = cfg.start_cash
     pnl_day = 0.0
     current_day = None
@@ -201,8 +185,7 @@ def run_backtest(df_m5: pd.DataFrame, cfg: DTSConfig) -> tuple[pd.DataFrame, dic
             direction = pos["direction"]
             exit_price = None
             reason = None
-            high, low = row.high, row.low
-
+            high, low = row["high"], row["low"]
             if direction == 1:
                 if low <= pos["sl"]:
                     exit_price, reason = pos["sl"], "SL"
@@ -215,7 +198,7 @@ def run_backtest(df_m5: pd.DataFrame, cfg: DTSConfig) -> tuple[pd.DataFrame, dic
                     exit_price, reason = pos["tp"], "TP"
 
             if exit_price is None:
-                dist = abs(row.close - pos["entry"])
+                dist = abs(row["close"] - pos["entry"])
                 target_dist = abs(pos["tp"] - pos["entry"])
                 if cfg.use_break_even and target_dist > 0 and dist >= target_dist * cfg.be_trigger:
                     if direction == 1 and pos["sl"] < pos["entry"]:
@@ -224,11 +207,11 @@ def run_backtest(df_m5: pd.DataFrame, cfg: DTSConfig) -> tuple[pd.DataFrame, dic
                         pos["sl"] = pos["entry"]
                 if cfg.use_trailing and target_dist > 0 and dist >= target_dist * cfg.trail_trigger:
                     if direction == 1:
-                        pos["sl"] = max(pos["sl"], row.close - row.atr)
+                        pos["sl"] = max(pos["sl"], row["close"] - row["atr"])
                     else:
-                        pos["sl"] = min(pos["sl"], row.close + row.atr)
+                        pos["sl"] = min(pos["sl"], row["close"] + row["atr"])
                 if should_force_close(ts, cfg):
-                    exit_price, reason = row.close, "FORCE_CLOSE"
+                    exit_price, reason = row["close"], "FORCE_CLOSE"
 
             if exit_price is not None:
                 gross = (exit_price - pos["entry"]) * cfg.point_value * cfg.contracts * direction
@@ -249,8 +232,8 @@ def run_backtest(df_m5: pd.DataFrame, cfg: DTSConfig) -> tuple[pd.DataFrame, dic
         if sig == 0:
             continue
         signal_bar = df.iloc[i - 1]
-        entry = row.open
-        sl_dist = signal_bar.atr * cfg.atr_mult_sl
+        entry = row["open"]
+        sl_dist = signal_bar["atr"] * cfg.atr_mult_sl
         if not risk_is_valid(sl_dist, cfg):
             continue
         tp_dist = sl_dist * cfg.rr_ratio
@@ -258,26 +241,27 @@ def run_backtest(df_m5: pd.DataFrame, cfg: DTSConfig) -> tuple[pd.DataFrame, dic
             sl, tp = entry - sl_dist, entry + tp_dist
         else:
             sl, tp = entry + sl_dist, entry - tp_dist
-        pos = {"entry_time": ts, "symbol": cfg.symbol, "direction": sig, "entry": float(entry), "sl": float(sl), "tp": float(tp), "atr": float(signal_bar.atr)}
+        pos = {"entry_time": ts, "symbol": cfg.symbol, "direction": sig, "entry": float(entry), "sl": float(sl), "tp": float(tp), "atr": float(signal_bar["atr"])}
 
     trades_df = pd.DataFrame(trades)
-    if not trades_df.empty:
-        trades_df["cum_pnl"] = trades_df["pnl"].cumsum()
-        eq = cfg.start_cash + trades_df["cum_pnl"]
-        dd = eq - eq.cummax()
-        wins = trades_df[trades_df.pnl > 0]
-        losses = trades_df[trades_df.pnl < 0]
-        pf = wins.pnl.sum() / abs(losses.pnl.sum()) if not losses.empty else np.inf
-        summary = {
-            "symbol": cfg.symbol,
-            "trades": int(len(trades_df)),
-            "net_profit": float(trades_df.pnl.sum()),
-            "final_equity": float(cfg.start_cash + trades_df.pnl.sum()),
-            "win_rate": float((trades_df.pnl > 0).mean()),
-            "profit_factor": float(pf),
-            "max_drawdown_reais": float(dd.min()),
-            "avg_pnl": float(trades_df.pnl.mean()),
-        }
-    else:
+    if trades_df.empty:
         summary = {"symbol": cfg.symbol, "trades": 0, "net_profit": 0.0, "final_equity": cfg.start_cash, "win_rate": 0.0, "profit_factor": 0.0, "max_drawdown_reais": 0.0, "avg_pnl": 0.0}
+        return trades_df, summary
+
+    trades_df["cum_pnl"] = trades_df["pnl"].cumsum()
+    eq = cfg.start_cash + trades_df["cum_pnl"]
+    dd = eq - eq.cummax()
+    wins = trades_df[trades_df["pnl"] > 0]
+    losses = trades_df[trades_df["pnl"] < 0]
+    pf = wins["pnl"].sum() / abs(losses["pnl"].sum()) if not losses.empty else np.inf
+    summary = {
+        "symbol": cfg.symbol,
+        "trades": int(len(trades_df)),
+        "net_profit": float(trades_df["pnl"].sum()),
+        "final_equity": float(cfg.start_cash + trades_df["pnl"].sum()),
+        "win_rate": float((trades_df["pnl"] > 0).mean()),
+        "profit_factor": float(pf),
+        "max_drawdown_reais": float(dd.min()),
+        "avg_pnl": float(trades_df["pnl"].mean()),
+    }
     return trades_df, summary
