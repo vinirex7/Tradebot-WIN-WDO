@@ -1,0 +1,34 @@
+; === SET FILE — DUAL TREND SCALPER — WIN (WINFUT) ===
+; Corretora: XP Investimentos | MT5
+; Última revisão: 2026-07-02
+
+Simbolo1=WINFUT
+Simbolo2=WDOFUT
+EMA_Rapida=9
+EMA_Lenta=21
+EMA_Tendencia=50
+MACD_Rapida=12
+MACD_Lenta=26
+MACD_Sinal=9
+ATR_Periodo=14
+ATR_Mult_SL=1.2
+RR_Ratio=2.0
+Risco_Reais=50.0
+Perda_Diaria=150.0
+DD_Max=500.0
+MaxTradesWIN=3
+MaxTradesWDO=3
+Hora_Ini_1=9
+Min_Ini_1=30
+Hora_Fim_1=12
+Min_Fim_1=0
+Hora_Ini_2=14
+Min_Ini_2=0
+Hora_Fim_2=16
+Min_Fim_2=30
+Hora_Fechamento=18
+Min_Fechamento=10
+UseTrailing=true
+UseBreakEven=true
+BE_Pct=0.30
+Trailing_Pct=0.50

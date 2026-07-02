@@ -1,137 +1,66 @@
-# 🤖 DualTrendScalper — Trading Bot WIN & WDO
+# 🤖 Tradebot WIN-WDO — DUAL TREND SCALPER
 
-> **Day trade automatizado** nos minicontratos de Índice (WINFUT) e Dólar (WDOFUT) da B3, operando via MetaTrader 5 conectado à **XP Investimentos**.
+Bot de day trade automatizado para **WINFUT (Mini Índice)** e **WDOFUT (Mini Dólar)** na B3, via **MetaTrader 5**, vinculado à **XP Investimentos**.
 
----
+## 📋 Estratégia: DUAL TREND SCALPER
+
+- **Filosofia:** Tendência intradiária com filtro de momentum
+- **Timeframe principal:** M5 | **Filtro de tendência:** M15
+- **Indicadores:** EMA 9/21/50 · MACD(12,26,9) · ATR(14)
+- **Gestão de risco:** Stop dinâmico por ATR · Break-even · Trailing stop
+- **Horários operacionais:** 9h30–12h00 e 14h00–16h30 (horário de Brasília)
+- **Capital mínimo recomendado:** R$ 3.000–R$ 5.000
 
 ## 📁 Estrutura do Repositório
 
 ```
-Tradebot-WIN-WDO/
 ├── Experts/
-│   └── DualTrendScalper.mq5      ← EA principal (cole em MQL5/Experts/)
+│   └── DualTrendScalper.mq5      # EA principal (MQL5)
 ├── Include/
-│   ├── SignalEngine.mqh            ← Motor de sinais (EMA + MACD + ATR)
-│   ├── RiskManager.mqh             ← Gestão de risco e travas diárias
-│   ├── TimeFilter.mqh              ← Filtro de janelas horárias
-│   └── TradeLogger.mqh             ← Logger CSV automático
+│   └── RiskManager.mqh           # Funções de gestão de risco
 ├── Scripts/
-│   └── VerificarAmbiente.mq5      ← Diagnóstico pré-live
+│   ├── CloseAllPositions.mq5     # Fecha todas as posições (emergência)
+│   └── DailyReport.mq5           # Relatório diário de P&L
 ├── Sets/
-│   └── DualTrendScalper_Default.set ← Parâmetros + faixas de otimização
+│   ├── DualTrendScalper_WIN.set  # Parâmetros otimizados WIN
+│   └── DualTrendScalper_WDO.set  # Parâmetros otimizados WDO
 ├── Tests/
-│   ├── BacktestConfig_WINFUT.ini   ← Config do Strategy Tester (WIN)
-│   └── BacktestConfig_WDOFUT.ini   ← Config do Strategy Tester (WDO)
-└── backtest/                        ← Backtest Python (branch infra-1)
+│   └── Walkforward_Config.md     # Configuração de walk-forward testing
+├── backtest/                     # (branch infra-1) Backtest Python
+│   ├── backtest.py
+│   ├── walkforward.py
+│   └── requirements.txt
+└── docs/
+    └── SETUP_XP_MT5.md           # Guia de configuração MT5 + XP
 ```
 
----
+## 🚀 Início Rápido
 
-## ⚙️ Estratégia
+### Live Trading (MT5 + XP)
+1. Siga `docs/SETUP_XP_MT5.md` para instalar e configurar o MT5
+2. Carregue `Experts/DualTrendScalper.mq5` com o set file correspondente
+3. Ative o AutoTrading no MT5
 
-| Parâmetro | Valor |
-|-----------|-------|
-| Timeframe operacional | M5 |
-| Filtro de tendência | EMA 50 no M15 |
-| Entrada | Cruzamento EMA 9/21 confirmado pelo MACD |
-| Stop Loss | 1.2 × ATR(14) |
-| Take Profit | 2.0 × SL (RR 1:2) |
-| Break-even | Ativado a 30% do alvo |
-| Trailing stop | Ativado a 50% do alvo, passo = 1 ATR |
-| Janelas | 9h30–12h e 14h–16h30 |
-| Fechamento forçado | 18h10 |
-| Trava de perda diária | R$ 150 |
-| Meta de ganho diário | R$ 300 |
-
----
-
-## 🚀 Instalação no MetaTrader 5
-
-### 1. Abrir pasta de dados
-```
-MT5 → Arquivo → Abrir pasta de dados → MQL5/
-```
-
-### 2. Copiar arquivos
-```
-Experts/DualTrendScalper.mq5   → MQL5/Experts/
-Include/*.mqh                   → MQL5/Include/
-Scripts/VerificarAmbiente.mq5  → MQL5/Scripts/
-```
-
-### 3. Compilar
-```
-MetaEditor → Abrir DualTrendScalper.mq5 → F7
-Resultado esperado: 0 erros, 0 avisos críticos
-```
-
-### 4. Conectar à XP Investimentos
-```
-Servidor : mt5.xpi.com.br:443
-Login    : (seu número de conta)
-Senha    : (sua senha MT5 XP)
-```
-
-### 5. Verificar ambiente (OBRIGATÓRIO)
-```
-MT5 → Navigator → Scripts → VerificarAmbiente → Executar
-Verificar no log: Trading PERMITIDO, símbolos OK, latência < 150ms
-```
-
----
-
-## 📊 Backtest (MT5 Strategy Tester)
-
-1. `MT5 → Exibir → Strategy Tester`
-2. Carregar `Sets/DualTrendScalper_Default.set` na aba **Entradas**
-3. Copiar conteúdo de `Tests/BacktestConfig_WINFUT.ini` nas configurações
-4. Modelo: **Every Tick** | Período: M5 | 2023–2025
-5. Executar e verificar métricas mínimas:
-
-| Métrica | Mínimo aceitável |
-|---------|------------------|
-| Profit Factor | ≥ 1.4 |
-| Drawdown máx. | ≤ 15% |
-| Sharpe Ratio | ≥ 0.8 |
-| Recovery Factor | ≥ 2.0 |
-| Walk-Forward Efficiency | ≥ 0.50 |
-
----
-
-## 🔄 Walk-Forward
-
-| Período | Datas |
-|---------|-------|
-| In-Sample (IS) | 2023-01-02 → 2025-03-31 |
-| Out-of-Sample (OOS) | 2025-04-01 → 2025-12-31 |
-| WFE = Lucro_OOS / Lucro_IS | ≥ 0.50 |
-
----
-
-## 🐍 Backtest Python (branch `infra-1`)
-
-Simulação do bot em Python com dados reais via `yfinance`, executável no **Termius**:
-
+### Backtest Python (branch `infra-1`)
 ```bash
 git checkout infra-1
 cd backtest
 pip install -r requirements.txt
-python run_backtest.py --symbol WIN --start 2023-01-02 --end 2025-12-31
-python run_backtest.py --symbol WDO --start 2023-01-02 --end 2025-12-31
+python backtest.py --symbol WINFUT --start 2024-01-01 --end 2026-06-30
 ```
 
----
+## ⚙️ Parâmetros Principais
 
-## ⚠️ Avisos Importantes
+| Parâmetro       | Valor padrão | Descrição                     |
+|-----------------|-------------|-------------------------------|
+| ATR_Mult_SL     | 1.2         | Multiplicador do stop loss    |
+| RR_Ratio        | 2.0         | Relação risco/retorno mínima  |
+| Risco_Reais     | R$ 50       | Risco máximo por operação     |
+| Perda_Diaria    | R$ 150      | Trava de perda diária         |
+| DD_Max          | R$ 500      | Drawdown máximo (pausa 5d)    |
+| MaxTradesWIN    | 3           | Máximo de trades/dia no WIN   |
+| MaxTradesWDO    | 3           | Máximo de trades/dia no WDO   |
 
-- **Teste em conta demo por no mínimo 30 dias** antes de conta real
-- O bot **não garante lucro** — mercados são imprevisíveis
-- Revise os parâmetros mensalmente
-- Este projeto é **educacional** — não constitui recomendação de investimento
-- Consulte um profissional certificado (CNPI) antes de operar
+## ⚠️ Aviso Legal
 
----
-
-## 📄 Licença
-
-MIT License — uso livre com atribuição.
+Este projeto tem finalidade educacional e experimental. Operações em mercados futuros envolvem risco de perda total do capital. Valide sempre com backtest extensivo antes de operar com capital real. Consulte um analista certificado (CNPI) antes de qualquer decisão de investimento.
