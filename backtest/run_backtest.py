@@ -29,7 +29,7 @@ def parse_args():
 def main():
     args = parse_args()
     overrides = {
-        "risco_reais": args risk if False else args.risk,
+        "risco_reais": args.risk,
         "perda_diaria": args.daily_loss,
         "ganho_diario": args.daily_gain,
         "start_cash": args.cash,
