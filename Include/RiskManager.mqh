@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|  RiskManager.mqh — Gestão de Risco DualTrendScalper             |
-//|  Trava diária, meta diária, validação de margem                 |
+//|  Trava diária, validação de risco financeiro e margem           |
 //+------------------------------------------------------------------+
 #pragma once
 
@@ -24,26 +24,25 @@ public:
       return true;
    }
 
-   void ResetDiario()        { m_pnl_dia = 0.0; }
+   void ResetDiario()         { m_pnl_dia = 0.0; }
    void AtualizarPnL(double v){ m_pnl_dia += v; }
-   double GetPnLDiario()     { return m_pnl_dia; }
+   double GetPnLDiario()      { return m_pnl_dia; }
 
-   bool TravaPerdaAtingida() { return m_pnl_dia <= -m_perda_max; }
-   bool TravaGanhoAtingida() { return m_pnl_dia >= m_ganho_meta; }
+   bool TravaPerdaAtingida()  { return m_pnl_dia <= -m_perda_max; }
+   bool TravaGanhoAtingida()  { return m_pnl_dia >= m_ganho_meta; }
 
-   bool ValidarRisco(const string sym, double sl_pts)
+   bool ValidarRisco(const string sym, double sl_dist_price)
    {
-      if(sl_pts <= 0) return false;
+      if(sl_dist_price <= 0) return false;
 
       double tick_val  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
       double tick_size = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
-      double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
-      if(tick_size <= 0 || point <= 0) return false;
+      if(tick_size <= 0 || tick_val <= 0) return false;
 
-      double risk_1lot = (sl_pts * point / tick_size) * tick_val;
+      // Risco financeiro de 1 contrato: distância do stop / tamanho do tick * valor do tick.
+      double risk_1lot = (sl_dist_price / tick_size) * tick_val;
       if(risk_1lot <= 0) return false;
 
-      // Verifica margem disponível
       double margem_livre = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
       double margem_1lot  = 0;
       if(!OrderCalcMargin(ORDER_TYPE_BUY, sym, 1.0,
@@ -58,12 +57,11 @@ public:
 
       if(risk_1lot > m_risco_reais)
       {
-         Print(StringFormat("RISCO: Risco 1 lote (%.2f) > limite (%.2f) em %s",
+         Print(StringFormat("RISCO: Risco 1 contrato (%.2f) > limite (%.2f) em %s",
                risk_1lot, m_risco_reais, sym));
          return false;
       }
 
-      double saldo_disp = m_ganho_meta - m_pnl_dia;
       if(m_pnl_dia < 0 && MathAbs(m_pnl_dia) + risk_1lot > m_perda_max)
       {
          Print("RISCO: Nova operação ultrapassaria trava diária.");
