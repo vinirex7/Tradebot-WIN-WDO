@@ -11,12 +11,12 @@ from dts_engine import DTSConfig, load_ohlcv, load_yfinance, run_backtest
 
 
 DEFAULT_WINDOWS = [
-    ("2023-01-02", "2023-12-31", "2024-01-01", "2024-03-31"),
-    ("2023-01-02", "2024-03-31", "2024-04-01", "2024-06-30"),
-    ("2023-01-02", "2024-06-30", "2024-07-01", "2024-09-30"),
-    ("2023-01-02", "2024-09-30", "2024-10-01", "2024-12-31"),
-    ("2023-01-02", "2024-12-31", "2025-01-01", "2025-03-31"),
-    ("2023-01-02", "2025-03-31", "2025-04-01", "2025-12-31"),
+    ("2024-01-01", "2024-06-30", "2024-07-01", "2024-09-30"),
+    ("2024-01-01", "2024-09-30", "2024-10-01", "2024-12-31"),
+    ("2024-01-01", "2024-12-31", "2025-01-01", "2025-03-31"),
+    ("2024-01-01", "2025-03-31", "2025-04-01", "2025-06-30"),
+    ("2024-01-01", "2025-06-30", "2025-07-01", "2025-12-31"),
+    ("2024-01-01", "2025-12-31", "2026-01-01", "2026-06-30"),
 ]
 
 
@@ -24,12 +24,12 @@ def parse_args():
     p = argparse.ArgumentParser(description="Walk-forward Python do DualTrendScalper")
     p.add_argument("--symbol", default="WIN")
     p.add_argument("--csv", help="CSV OHLCV M5 exportado do MT5")
-    p.add_argument("--start", default="2023-01-02")
-    p.add_argument("--end", default="2025-12-31")
+    p.add_argument("--start", default="2024-01-01")
+    p.add_argument("--end", default="2026-06-30")
     p.add_argument("--output", default="results")
     p.add_argument("--atr-grid", default="0.8,1.0,1.2,1.5,1.8,2.0")
     p.add_argument("--rr-grid", default="1.5,2.0,2.5,3.0")
-    p.add_argument("--ema-trend-grid", default="40,50,60,70")
+    p.add_argument("--ema-trend-grid", default="34,50,70,100")
     return p.parse_args()
 
 
@@ -37,8 +37,18 @@ def slice_df(df: pd.DataFrame, start: str, end: str) -> pd.DataFrame:
     return df.loc[(df.index >= pd.Timestamp(start)) & (df.index <= pd.Timestamp(end))].copy()
 
 
+def approved(summary: dict, min_trades: int = 30) -> bool:
+    return bool(
+        summary["trades"] >= min_trades
+        and summary["net_profit"] > 0
+        and summary["profit_factor"] >= 1.5
+        and summary["win_rate"] >= 0.45
+        and summary["max_drawdown_pct"] <= 0.15
+    )
+
+
 def score(summary: dict) -> float:
-    if summary["trades"] < 30 or summary["net_profit"] <= 0 or summary["profit_factor"] < 1.1:
+    if not approved(summary, min_trades=30):
         return -1e9
     return summary["profit_factor"] * summary["net_profit"] / max(1.0, abs(summary["max_drawdown_reais"]))
 
@@ -90,7 +100,7 @@ def main():
             "is_summary": best["summary"],
             "oos_summary": oos,
             "wfe": wfe,
-            "approved": bool(oos["profit_factor"] >= 1.4 and oos["trades"] >= 30 and wfe >= 0.50),
+            "approved": bool(approved(oos, min_trades=30) and wfe >= 0.50),
         })
 
     outdir = Path(args.output)
