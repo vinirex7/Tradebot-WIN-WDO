@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 import pandas as pd
-from pathlib import Path
 
 from dts_engine import DTSConfig, load_ohlcv, load_yfinance, run_backtest
 
@@ -12,19 +12,22 @@ from dts_engine import DTSConfig, load_ohlcv, load_yfinance, run_backtest
 def parse_args():
     p = argparse.ArgumentParser(description="Backtest Python do DualTrendScalper WIN/WDO")
     p.add_argument("--symbol", default="WIN", help="WIN, WDO, WINFUT, WDOFUT ou ticker customizado")
-    p.add_argument("--start", default="2023-01-02")
-    p.add_argument("--end", default="2025-12-31")
+    p.add_argument("--start", default="2024-01-01")
+    p.add_argument("--end", default="2026-06-30")
     p.add_argument("--csv", help="CSV OHLCV M5 exportado do MT5. Colunas: datetime,open,high,low,close[,volume]")
     p.add_argument("--output", default="results", help="Diretorio de saida")
     p.add_argument("--atr-mult-sl", type=float, default=None)
     p.add_argument("--rr-ratio", type=float, default=None)
+    p.add_argument("--atr-min-ratio", type=float, default=0.50)
     p.add_argument("--ema-fast", type=int, default=None)
     p.add_argument("--ema-slow", type=int, default=None)
     p.add_argument("--ema-trend", type=int, default=None)
     p.add_argument("--risk", type=float, default=50.0)
     p.add_argument("--daily-loss", type=float, default=150.0)
     p.add_argument("--daily-gain", type=float, default=300.0)
+    p.add_argument("--max-trades-day", type=int, default=3)
     p.add_argument("--cash", type=float, default=5000.0)
+    p.add_argument("--no-yfinance", action="store_true", help="Exige --csv; evita baixar dados externos")
     return p.parse_args()
 
 
@@ -35,6 +38,8 @@ def main():
         "perda_diaria": args.daily_loss,
         "ganho_diario": args.daily_gain,
         "start_cash": args.cash,
+        "atr_min_ratio": args.atr_min_ratio,
+        "max_trades_per_day": args.max_trades_day,
     }
     if args.atr_mult_sl is not None:
         overrides["atr_mult_sl"] = args.atr_mult_sl
@@ -51,8 +56,13 @@ def main():
     if args.csv:
         data = load_ohlcv(args.csv)
     else:
+        if args.no_yfinance:
+            raise SystemExit("Use --csv com arquivo M5 exportado do MT5 ou remova --no-yfinance.")
         data = load_yfinance(args.symbol, args.start, args.end, interval="5m")
+
     data = data.loc[(data.index >= pd.Timestamp(args.start)) & (data.index <= pd.Timestamp(args.end))].copy()
+    if data.empty:
+        raise SystemExit("Sem dados no período solicitado. Confira --start/--end e o CSV.")
 
     trades, summary = run_backtest(data, cfg)
     outdir = Path(args.output)
