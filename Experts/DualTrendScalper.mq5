@@ -2,12 +2,11 @@
 //|  DualTrendScalper.mq5                                           |
 //|  Bot de Day Trade WIN & WDO — B3                                |
 //|  Plataforma: MetaTrader 5 | Timeframe: M5 | Filtro: M15        |
-//|  Corretora : XP Investimentos (mt5.xpi.com.br:443)             |
 //|  Repo      : github.com/vinirex7/Tradebot-WIN-WDO              |
 //+------------------------------------------------------------------+
 #property copyright   "vinirex7"
 #property link        "https://github.com/vinirex7/Tradebot-WIN-WDO"
-#property version     "1.00"
+#property version     "1.10"
 #property description "DualTrendScalper — Bot WIN & WDO para B3"
 
 #include <Trade\Trade.mqh>
@@ -17,12 +16,10 @@
 #include "..\Include\TradeLogger.mqh"
 #include "..\Include\TimeFilter.mqh"
 
-//--- Inputs: Símbolos
 input group "=== Símbolos ==="
 input string   Inp_Simbolo1       = "WINFUT";
 input string   Inp_Simbolo2       = "WDOFUT";
 
-//--- Inputs: Indicadores
 input group "=== Indicadores ==="
 input int      Inp_EMA_Rapida     = 9;
 input int      Inp_EMA_Lenta      = 21;
@@ -31,20 +28,23 @@ input int      Inp_MACD_Rapida    = 12;
 input int      Inp_MACD_Lenta     = 26;
 input int      Inp_MACD_Sinal     = 9;
 input int      Inp_ATR_Periodo    = 14;
+input double   Inp_ATR_Min_Ratio  = 0.50;
 
-//--- Inputs: Gestão de Risco
 input group "=== Gestão de Risco ==="
-input double   Inp_Risco_Reais    = 50.0;   // Risco máximo por operação (R$)
-input double   Inp_Perda_Diaria   = 150.0;  // Trava de perda diária (R$)
-input double   Inp_Ganho_Diario   = 300.0;  // Meta de ganho diário (R$)
-input double   Inp_ATR_Mult_SL    = 1.2;    // Multiplicador SL (x ATR)
-input double   Inp_RR_Ratio       = 2.0;    // Relação Risco/Retorno mínima
-input bool     Inp_UseTrailing    = true;
-input bool     Inp_UseBreakEven   = true;
-input double   Inp_BE_Trigger     = 0.30;   // % do alvo para ativar break-even
-input double   Inp_Trail_Trigger  = 0.50;   // % do alvo para ativar trailing
+input double   Inp_Risco_Reais        = 50.0;
+input double   Inp_Perda_Diaria       = 150.0;
+input double   Inp_Ganho_Diario       = 300.0;
+input double   Inp_ATR_Mult_SL_WIN    = 1.2;
+input double   Inp_ATR_Mult_SL_WDO    = 1.5;
+input double   Inp_RR_Ratio           = 2.0;
+input int      Inp_MaxTradesWIN       = 3;
+input int      Inp_MaxTradesWDO       = 3;
+input bool     Inp_BloquearSimultaneo = true;
+input bool     Inp_UseTrailing        = true;
+input bool     Inp_UseBreakEven       = true;
+input double   Inp_BE_Trigger         = 0.30;
+input double   Inp_Trail_Trigger      = 0.50;
 
-//--- Inputs: Filtros de Horário
 input group "=== Filtros de Horário ==="
 input int      Inp_Hora_Ini_1     = 9;
 input int      Inp_Min_Ini_1      = 30;
@@ -57,13 +57,11 @@ input int      Inp_Min_Fim_2      = 30;
 input int      Inp_Hora_FimPregao = 18;
 input int      Inp_Min_FimPregao  = 10;
 
-//--- Inputs: Gerais
 input group "=== Configurações Gerais ==="
 input long     Inp_MagicNumber    = 202601;
 input bool     Inp_LogEnabled     = true;
 input string   Inp_LogFile        = "DTS_Log";
 
-//--- Objetos globais
 CTrade         g_Trade;
 CPositionInfo  g_Pos;
 CRiskManager   g_Risk;
@@ -74,14 +72,18 @@ CTimeFilter    g_Time;
 datetime       g_UltimaBarraWIN   = 0;
 datetime       g_UltimaBarraWDO   = 0;
 datetime       g_DiaAtual         = 0;
+int            g_TradesWINHoje    = 0;
+int            g_TradesWDOHoje    = 0;
 
-//+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("==== DualTrendScalper v1.00 ====");
+   Print("==== DualTrendScalper v1.10 ====");
    Print("Simbolo1: ", Inp_Simbolo1, " | Simbolo2: ", Inp_Simbolo2);
    Print("Servidor: ", AccountInfoString(ACCOUNT_SERVER));
    Print("Conta: ",    AccountInfoInteger(ACCOUNT_LOGIN));
+
+   SymbolSelect(Inp_Simbolo1, true);
+   SymbolSelect(Inp_Simbolo2, true);
 
    g_Trade.SetExpertMagicNumber(Inp_MagicNumber);
    g_Trade.SetDeviationInPoints(30);
@@ -91,9 +93,11 @@ int OnInit()
    if(!g_Risk.Init(Inp_Risco_Reais, Inp_Perda_Diaria, Inp_Ganho_Diario, Inp_MagicNumber))
       return(INIT_FAILED);
 
-   if(!g_Signal.Init(Inp_EMA_Rapida, Inp_EMA_Lenta, Inp_EMA_Tendencia,
+   if(!g_Signal.Init(Inp_Simbolo1, Inp_Simbolo2,
+                     Inp_EMA_Rapida, Inp_EMA_Lenta, Inp_EMA_Tendencia,
                      Inp_MACD_Rapida, Inp_MACD_Lenta, Inp_MACD_Sinal,
-                     Inp_ATR_Periodo, Inp_ATR_Mult_SL, Inp_RR_Ratio))
+                     Inp_ATR_Periodo, Inp_ATR_Mult_SL_WIN, Inp_ATR_Mult_SL_WDO,
+                     Inp_RR_Ratio, Inp_ATR_Min_Ratio))
       return(INIT_FAILED);
 
    g_Time.Init(Inp_Hora_Ini_1, Inp_Min_Ini_1, Inp_Hora_Fim_1, Inp_Min_Fim_1,
@@ -103,13 +107,9 @@ int OnInit()
    if(Inp_LogEnabled)
       g_Logger.Init(Inp_LogFile, Inp_MagicNumber);
 
-   SymbolSelect(Inp_Simbolo1, true);
-   SymbolSelect(Inp_Simbolo2, true);
-
    return(INIT_SUCCEEDED);
 }
 
-//+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
    g_Signal.Deinit();
@@ -118,7 +118,6 @@ void OnDeinit(const int reason)
    Print("DualTrendScalper encerrado. Motivo: ", reason);
 }
 
-//+------------------------------------------------------------------+
 void OnTick()
 {
    VerificaResetDiario();
@@ -132,6 +131,7 @@ void OnTick()
    if(g_Time.DeveFechamento())
    {
       FecharTodasPosicoes("Fim de pregao");
+      AtualizarDashboard(g_Risk.GetPnLDiario());
       return;
    }
 
@@ -157,7 +157,6 @@ void OnTick()
    AtualizarDashboard(pnlDia);
 }
 
-//+------------------------------------------------------------------+
 void ProcessarSimbolo(const string symbol, datetime &ultimaBarra)
 {
    datetime tb[];
@@ -167,7 +166,9 @@ void ProcessarSimbolo(const string symbol, datetime &ultimaBarra)
    ultimaBarra = tb[0];
 
    if(!g_Time.DentroJanela()) return;
-   if(TemPosicao(symbol))    return;
+   if(TemPosicao(symbol)) return;
+   if(Inp_BloquearSimultaneo && TemQualquerPosicaoDTS()) return;
+   if(!PodeOperarHoje(symbol)) return;
 
    ENUM_SIGNAL sinal = g_Signal.GetSinal(symbol);
    if(sinal == SIGNAL_NONE) return;
@@ -184,10 +185,11 @@ void ProcessarSimbolo(const string symbol, datetime &ultimaBarra)
 
    if(ok)
    {
-      string msg = StringFormat("[%s] %s %s | E:%.2f SL:%.2f TP:%.2f ATR:%.2f",
+      IncrementarTrades(symbol);
+      string msg = StringFormat("[%s] %s %s | E:%.2f SL:%.2f TP:%.2f ATR:%.2f ATRmult:%.2f",
          TimeToString(TimeCurrent(), TIME_MINUTES),
          sinal == SIGNAL_BUY ? "COMPRA" : "VENDA",
-         symbol, params.entry, params.sl, params.tp, params.atr);
+         symbol, params.entry, params.sl, params.tp, params.atr, params.atr_mult_used);
       Print(msg);
       if(Inp_LogEnabled) g_Logger.LogTrade(msg);
    }
@@ -195,7 +197,6 @@ void ProcessarSimbolo(const string symbol, datetime &ultimaBarra)
       Print("ERRO ao abrir ordem em ", symbol, " | Codigo: ", GetLastError());
 }
 
-//+------------------------------------------------------------------+
 void GerenciarPosicoes()
 {
    for(int i = PositionsTotal() - 1; i >= 0; i--)
@@ -204,18 +205,17 @@ void GerenciarPosicoes()
       if(g_Pos.Magic() != Inp_MagicNumber) continue;
       if(g_Pos.Symbol() != Inp_Simbolo1 && g_Pos.Symbol() != Inp_Simbolo2) continue;
 
-      string   sym    = g_Pos.Symbol();
+      string   sym     = g_Pos.Symbol();
       double   entrada = g_Pos.PriceOpen();
-      double   sl     = g_Pos.StopLoss();
-      double   tp     = g_Pos.TakeProfit();
-      long     tipo   = g_Pos.PositionType();
-      double   preco  = tipo == POSITION_TYPE_BUY ?
-                        SymbolInfoDouble(sym, SYMBOL_BID) :
-                        SymbolInfoDouble(sym, SYMBOL_ASK);
-      double   atr    = g_Signal.GetATR(sym);
-      double   alvo   = MathAbs(tp - entrada);
-      double   dist   = MathAbs(preco - entrada);
-      ulong    ticket = g_Pos.Ticket();
+      double   sl      = g_Pos.StopLoss();
+      double   tp      = g_Pos.TakeProfit();
+      long     tipo    = g_Pos.PositionType();
+      double   preco   = tipo == POSITION_TYPE_BUY ? SymbolInfoDouble(sym, SYMBOL_BID)
+                                                     : SymbolInfoDouble(sym, SYMBOL_ASK);
+      double   atr     = g_Signal.GetATR(sym);
+      double   alvo    = MathAbs(tp - entrada);
+      double   dist    = MathAbs(preco - entrada);
+      ulong    ticket  = g_Pos.Ticket();
 
       if(Inp_UseBreakEven && alvo > 0 && dist >= alvo * Inp_BE_Trigger)
       {
@@ -225,7 +225,7 @@ void GerenciarPosicoes()
             g_Trade.PositionModify(ticket, entrada, tp);
       }
 
-      if(Inp_UseTrailing && alvo > 0 && dist >= alvo * Inp_Trail_Trigger)
+      if(Inp_UseTrailing && alvo > 0 && dist >= alvo * Inp_Trail_Trigger && atr > 0)
       {
          double novoSL;
          bool   deve = false;
@@ -246,7 +246,6 @@ void GerenciarPosicoes()
    }
 }
 
-//+------------------------------------------------------------------+
 void FecharTodasPosicoes(const string motivo)
 {
    for(int i = PositionsTotal() - 1; i >= 0; i--)
@@ -259,7 +258,6 @@ void FecharTodasPosicoes(const string motivo)
    }
 }
 
-//+------------------------------------------------------------------+
 bool TemPosicao(const string symbol)
 {
    for(int i = 0; i < PositionsTotal(); i++)
@@ -271,7 +269,31 @@ bool TemPosicao(const string symbol)
    return false;
 }
 
-//+------------------------------------------------------------------+
+bool TemQualquerPosicaoDTS()
+{
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      if(!g_Pos.SelectByIndex(i)) continue;
+      if(g_Pos.Magic() == Inp_MagicNumber &&
+         (g_Pos.Symbol() == Inp_Simbolo1 || g_Pos.Symbol() == Inp_Simbolo2))
+         return true;
+   }
+   return false;
+}
+
+bool PodeOperarHoje(const string symbol)
+{
+   if(symbol == Inp_Simbolo1 && g_TradesWINHoje >= Inp_MaxTradesWIN) return false;
+   if(symbol == Inp_Simbolo2 && g_TradesWDOHoje >= Inp_MaxTradesWDO) return false;
+   return true;
+}
+
+void IncrementarTrades(const string symbol)
+{
+   if(symbol == Inp_Simbolo1) g_TradesWINHoje++;
+   else if(symbol == Inp_Simbolo2) g_TradesWDOHoje++;
+}
+
 void VerificaResetDiario()
 {
    datetime hoje = StringToTime(TimeToString(TimeCurrent(), TIME_DATE));
@@ -281,12 +303,13 @@ void VerificaResetDiario()
       g_Risk.ResetDiario();
       g_UltimaBarraWIN = 0;
       g_UltimaBarraWDO = 0;
+      g_TradesWINHoje = 0;
+      g_TradesWDOHoje = 0;
       Print("=== Novo dia: ", TimeToString(hoje, TIME_DATE), " ===");
       if(Inp_LogEnabled) g_Logger.LogDiaSeparator(TimeToString(hoje, TIME_DATE));
    }
 }
 
-//+------------------------------------------------------------------+
 void AtualizarDashboard(double pnlDia)
 {
    bool janela  = g_Time.DentroJanela();
@@ -298,20 +321,23 @@ void AtualizarDashboard(double pnlDia)
       "Janela ativa: %s\n"
       "P&L dia     : R$ %.2f\n"
       "Trava perda : R$ %.2f\n"
-      "Meta ganho  : R$ %.2f\n"
+      "Trades WIN  : %d/%d\n"
+      "Trades WDO  : %d/%d\n"
+      "Simultaneo  : %s\n"
       "Status      : %s\n"
       "Servidor    : %s",
       TimeToString(TimeCurrent(), TIME_MINUTES|TIME_SECONDS),
       janela ? "ABERTA" : "FECHADA",
       pnlDia,
       Inp_Perda_Diaria,
-      Inp_Ganho_Diario,
+      g_TradesWINHoje, Inp_MaxTradesWIN,
+      g_TradesWDOHoje, Inp_MaxTradesWDO,
+      Inp_BloquearSimultaneo ? "BLOQUEADO" : "PERMITIDO",
       travado ? "TRAVADO" : (janela ? "OPERANDO" : "AGUARDANDO"),
       AccountInfoString(ACCOUNT_SERVER)
    ));
 }
 
-//+------------------------------------------------------------------+
 void OnTradeTransaction(const MqlTradeTransaction &trans,
                         const MqlTradeRequest     &request,
                         const MqlTradeResult      &result)
@@ -332,22 +358,19 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    }
 }
 
-//+------------------------------------------------------------------+
-//| OnTester — Critério personalizado de otimização               |
-//+------------------------------------------------------------------+
 double OnTester()
 {
    double profit     = TesterStatistics(STAT_PROFIT);
-   double maxDD_pct  = TesterStatistics(STAT_EQUITY_DD);
    double trades     = TesterStatistics(STAT_TRADES);
    double profitFact = TesterStatistics(STAT_PROFIT_FACTOR);
    double sharpe     = TesterStatistics(STAT_SHARPE_RATIO);
    double recoveryF  = TesterStatistics(STAT_RECOVERY_FACTOR);
+   double dd_abs     = TesterStatistics(STAT_EQUITY_DD);
 
-   if(trades    < 100)  return 0.0;
-   if(profit    <= 0)   return 0.0;
-   if(maxDD_pct > 20)   return 0.0;
-   if(profitFact < 1.1) return 0.0;
+   if(trades     < 100) return 0.0;
+   if(profit     <= 0)  return 0.0;
+   if(profitFact < 1.5) return 0.0;
+   if(dd_abs     > 750) return 0.0;
 
    return MathMax(0, sharpe * profitFact + recoveryF * 0.1);
 }
