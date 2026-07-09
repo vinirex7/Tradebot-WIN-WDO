@@ -10,7 +10,7 @@ from dts_engine import DTSConfig, load_ohlcv, load_yfinance, run_backtest
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Backtest Python do DualTrendScalper WIN/WDO")
+    p = argparse.ArgumentParser(description="Backtest Python individual do DualTrendScalper WIN/WDO")
     p.add_argument("--symbol", default="WIN", help="WIN, WDO, WINFUT, WDOFUT ou ticker customizado")
     p.add_argument("--start", default="2024-01-01")
     p.add_argument("--end", default="2026-06-30")
@@ -24,9 +24,10 @@ def parse_args():
     p.add_argument("--ema-trend", type=int, default=None)
     p.add_argument("--risk", type=float, default=50.0)
     p.add_argument("--daily-loss", type=float, default=150.0)
-    p.add_argument("--daily-gain", type=float, default=300.0)
+    p.add_argument("--dd-max", type=float, default=500.0)
     p.add_argument("--max-trades-day", type=int, default=3)
     p.add_argument("--cash", type=float, default=5000.0)
+    p.add_argument("--contracts", type=int, default=1)
     p.add_argument("--no-yfinance", action="store_true", help="Exige --csv; evita baixar dados externos")
     return p.parse_args()
 
@@ -36,8 +37,9 @@ def main():
     overrides = {
         "risco_reais": args.risk,
         "perda_diaria": args.daily_loss,
-        "ganho_diario": args.daily_gain,
+        "dd_max": args.dd_max,
         "start_cash": args.cash,
+        "contracts": args.contracts,
         "atr_min_ratio": args.atr_min_ratio,
         "max_trades_per_day": args.max_trades_day,
     }
@@ -62,7 +64,7 @@ def main():
 
     data = data.loc[(data.index >= pd.Timestamp(args.start)) & (data.index <= pd.Timestamp(args.end))].copy()
     if data.empty:
-        raise SystemExit("Sem dados no período solicitado. Confira --start/--end e o CSV.")
+        raise SystemExit("Sem dados no periodo solicitado. Confira --start/--end e o CSV.")
 
     trades, summary = run_backtest(data, cfg)
     outdir = Path(args.output)
