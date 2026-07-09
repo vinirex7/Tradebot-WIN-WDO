@@ -4,6 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
+import pandas as pd
+
 from dts_engine import DTSConfig, load_ohlcv, load_yfinance, run_backtest, run_dual_backtest
 
 
@@ -39,17 +41,26 @@ def cfg_for(symbol: str, args: argparse.Namespace) -> DTSConfig:
 
 def load_data(symbol: str, csv_path: str | None, args: argparse.Namespace):
     if csv_path:
-        return load_ohlcv(csv_path)
-    if args.no_yfinance:
-        raise SystemExit(f"Informe --csv para {symbol} ou remova --no-yfinance.")
-    return load_yfinance(symbol, args.start, args.end, interval="5m")
+        df = load_ohlcv(csv_path)
+    else:
+        if args.no_yfinance:
+            raise SystemExit(f"Informe --csv para {symbol} ou remova --no-yfinance.")
+        df = load_yfinance(symbol, args.start, args.end, interval="5m")
+
+    start = pd.Timestamp(args.start)
+    end = pd.Timestamp(args.end)
+    df = df.loc[(df.index >= start) & (df.index <= end)].copy()
+    if df.empty:
+        raise SystemExit(f"Sem dados para {symbol} no periodo {args.start} ate {args.end}.")
+    return df
 
 
 def save_outputs(trades, summary: dict, cfg: dict | list[dict], output: str, name: str) -> None:
     outdir = Path(output)
     outdir.mkdir(parents=True, exist_ok=True)
-    trades_path = outdir / f"{name}_trades.csv"
-    summary_path = outdir / f"{name}_summary.json"
+    safe_name = name.replace(":", "-").replace("/", "-")
+    trades_path = outdir / f"{safe_name}_trades.csv"
+    summary_path = outdir / f"{safe_name}_summary.json"
     if not trades.empty:
         trades.to_csv(trades_path, index=False)
     else:
@@ -71,13 +82,13 @@ def main() -> None:
         win_df = load_data("WINFUT", args.win_csv, args)
         wdo_df = load_data("WDOFUT", args.wdo_csv, args)
         trades, summary = run_dual_backtest(win_df, wdo_df, win_cfg, wdo_cfg)
-        save_outputs(trades, summary, [win_cfg.to_dict(), wdo_cfg.to_dict()], args.output, "DUAL_WIN_WDO")
+        save_outputs(trades, summary, [win_cfg.to_dict(), wdo_cfg.to_dict()], args.output, f"DUAL_WIN_WDO_{args.start}_{args.end}")
         return
 
     cfg = cfg_for(symbol, args)
     df = load_data(symbol, args.csv, args)
     trades, summary = run_backtest(df, cfg)
-    save_outputs(trades, summary, cfg.to_dict(), args.output, cfg.symbol)
+    save_outputs(trades, summary, cfg.to_dict(), args.output, f"{cfg.symbol}_{args.start}_{args.end}")
 
 
 if __name__ == "__main__":
