@@ -5,23 +5,24 @@ Backtest Python da branch `infra-1`, preparado para rodar no Termius/VPS e espel
 ## O que ele replica do live
 
 - Timeframe operacional M5.
-- Sinal calculado na última barra M5 fechada.
-- Entrada na abertura da barra seguinte, reduzindo look-ahead bias.
+- Sinal processado no fluxo da barra M5, como o EA faz ao detectar nova barra.
+- Entrada no preco da propria barra processada, aproximando o uso de ASK/BID do EA com OHLCV historico.
 - Cruzamento EMA 9/21.
-- Filtro de tendência com EMA 50 no M15.
-- Confirmação MACD(12,26,9).
-- Filtro de volatilidade: ATR(14) atual >= 50% da média dos últimos 20 ATRs.
-- Stop Loss por ATR: WIN = 1.2 x ATR; WDO = 1.5 x ATR.
+- Filtro de tendencia com EMA 50 no M15.
+- Confirmacao MACD(12,26,9) conforme o EA live: buffer 1 do iMACD, chamado no codigo de histograma.
+- Filtro de volatilidade: ATR(14) atual >= 50% da media dos ultimos 20 ATRs.
+- Stop Loss por ATR: ATR_Mult_SL padrao 1.2.
 - Take Profit = Stop x 2.0.
 - Break-even ao atingir 30% do alvo.
-- Trailing stop ao atingir 50% do alvo, com distância de 1 ATR.
+- Trailing stop ao atingir 50% do alvo, com distancia de 1 ATR.
 - Janelas operacionais: 09:30-12:00 e 14:00-16:30.
-- Fechamento forçado às 18:10.
-- Trava de perda diária de R$ 150.
-- Máximo de 3 operações por dia por ativo.
-- Modo dual WIN+WDO bloqueia posições simultâneas, igual ao EA live.
+- Fechamento forcado as 18:10.
+- Trava de perda diaria de R$ 150.
+- Drawdown maximo de R$ 500, pausando novas entradas no dia no backtest.
+- Maximo de 3 operacoes por dia por ativo.
+- Modo dual WIN+WDO permite posicao simultanea por simbolo, igual ao EA live, pois `TemPosicaoAberta(symbol)` verifica apenas o simbolo atual.
 
-## Instalação no Termius
+## Instalacao no Termius
 
 ```bash
 git clone https://github.com/vinirex7/Tradebot-WIN-WDO.git
@@ -35,7 +36,7 @@ pip install -r requirements.txt
 
 ## Formato do CSV M5 exportado do MT5
 
-Use dados M5 exportados do MetaTrader 5/XP. O caminho com CSV é o mais confiável para WIN/WDO.
+Use dados M5 exportados do MetaTrader 5/XP. O caminho com CSV e o mais confiavel para WIN/WDO.
 
 ```csv
 datetime,open,high,low,close,volume
@@ -44,7 +45,14 @@ datetime,open,high,low,close,volume
 
 ## Backtest individual
 
-Período padrão alinhado ao estudo: 2024-01-01 até 2026-06-30.
+Periodo padrao alinhado ao estudo: 2024-01-01 ate 2026-06-30.
+
+```bash
+python backtest.py --symbol WIN --csv data/WINFUT_M5.csv --start 2024-01-01 --end 2026-06-30
+python backtest.py --symbol WDO --csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
+```
+
+Os wrappers antigos tambem funcionam:
 
 ```bash
 python run_backtest.py --symbol WIN --csv data/WINFUT_M5.csv --start 2024-01-01 --end 2026-06-30
@@ -53,7 +61,13 @@ python run_backtest.py --symbol WDO --csv data/WDOFUT_M5.csv --start 2024-01-01 
 
 ## Backtest dual WIN + WDO
 
-Este modo é o mais parecido com o live quando o EA está no gráfico processando os dois símbolos. Ele processa WIN primeiro e WDO depois, bloqueando posição simultânea.
+Este modo processa WIN e WDO no mesmo backtest e permite posicoes simultaneas em ativos diferentes, igual ao EA live.
+
+```bash
+python backtest.py --symbol DUAL --win-csv data/WINFUT_M5.csv --wdo-csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
+```
+
+Wrapper antigo:
 
 ```bash
 python run_dual_backtest.py --win-csv data/WINFUT_M5.csv --wdo-csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
@@ -66,21 +80,21 @@ python walkforward.py --symbol WIN --csv data/WINFUT_M5.csv
 python walkforward.py --symbol WDO --csv data/WDOFUT_M5.csv
 ```
 
-## Métricas mínimas do estudo
+## Metricas minimas do estudo
 
 - Profit Factor >= 1.5.
 - Taxa de acerto >= 45%.
-- Drawdown máximo <= 15% do capital.
-- Número de trades >= 100 no backtest completo.
+- Drawdown maximo <= 15% do capital.
+- Numero de trades >= 100 no backtest completo.
 
-## Saídas
+## Saidas
 
 Arquivos gerados em `backtest/results/`:
 
-- `*_trades.csv`: lista de operações.
+- `*_trades.csv`: lista de operacoes.
 - `*_summary.json`: resumo do backtest.
-- `*_walkforward.json`: rodadas IS/OOS, parâmetros vencedores e aprovação OOS.
+- `*_walkforward.json`: rodadas IS/OOS, parametros vencedores e aprovacao OOS.
 
-## Observação importante
+## Observacao importante
 
-O `yfinance` fica disponível como fallback, mas para minicontratos brasileiros ele não substitui o backtest com dados reais M5 do MT5. Para validação séria, use `--csv`.
+O `yfinance` fica disponivel como fallback, mas para minicontratos brasileiros ele nao substitui o backtest com dados reais M5 do MT5. Para validacao seria, use `--csv`.
