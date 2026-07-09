@@ -9,12 +9,12 @@ Bot de day trade automatizado para **WINFUT (Mini Índice)** e **WDOFUT (Mini D�
 - **Indicadores:** EMA 9/21/50 · MACD(12,26,9) · ATR(14).
 - **Filtro de volatilidade:** ATR atual >= 50% da média dos últimos 20 ATRs.
 - **Gestão de risco:** stop dinâmico por ATR · break-even · trailing stop.
-- **Stops:** WIN = 1.2 x ATR | WDO = 1.5 x ATR.
+- **Stop padrão:** ATR_Mult_SL = 1.2 x ATR.
 - **Horários operacionais:** 9h30-12h00 e 14h00-16h30, horário de Brasília/servidor.
 - **Fechamento forçado:** 18h10.
 - **Capital de referência:** R$ 5.000, operando 1 contrato.
-- **Risco:** R$ 50 por operação, trava diária de R$ 150, máximo de 3 trades/dia por ativo.
-- **Operação simultânea WIN + WDO:** bloqueada no backtest dual e deve permanecer bloqueada no live.
+- **Risco:** R$ 50 por operação, trava diária de R$ 150, drawdown máximo de R$ 500, máximo de 3 trades/dia por ativo.
+- **Operação simultânea WIN + WDO:** permitida por símbolo, igual ao EA live, pois o EA verifica posição aberta por ativo.
 
 ## 📁 Estrutura do Repositório
 
@@ -35,9 +35,10 @@ Tradebot-WIN-WDO/
 │   ├── BacktestConfig_WINFUT.ini
 │   └── BacktestConfig_WDOFUT.ini
 └── backtest/
-    ├── dts_engine.py               # Engine Python alinhada ao estudo/live
-    ├── run_backtest.py             # Backtest individual WIN ou WDO
-    ├── run_dual_backtest.py        # Backtest WIN+WDO sem simultaneidade
+    ├── dts_engine.py               # Engine Python alinhada ao EA live
+    ├── backtest.py                 # CLI principal para Termius
+    ├── run_backtest.py             # Wrapper individual WIN ou WDO
+    ├── run_dual_backtest.py        # Wrapper WIN+WDO simultâneo por símbolo
     ├── walkforward.py              # Walk-forward IS/OOS
     ├── requirements.txt
     └── README.md
@@ -90,14 +91,14 @@ pip install -r requirements.txt
 Backtest individual com CSV M5 exportado do MT5:
 
 ```bash
-python run_backtest.py --symbol WIN --csv data/WINFUT_M5.csv --start 2024-01-01 --end 2026-06-30
-python run_backtest.py --symbol WDO --csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
+python backtest.py --symbol WIN --csv data/WINFUT_M5.csv --start 2024-01-01 --end 2026-06-30
+python backtest.py --symbol WDO --csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
 ```
 
-Backtest dual, mais parecido com o live porque bloqueia WIN+WDO simultâneo:
+Backtest dual WIN+WDO, com funcionamento por símbolo igual ao live:
 
 ```bash
-python run_dual_backtest.py --win-csv data/WINFUT_M5.csv --wdo-csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
+python backtest.py --symbol DUAL --win-csv data/WINFUT_M5.csv --wdo-csv data/WDOFUT_M5.csv --start 2024-01-01 --end 2026-06-30
 ```
 
 Walk-forward:
