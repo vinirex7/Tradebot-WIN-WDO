@@ -24,7 +24,7 @@ input double   Risco_Reais    = 50.0;      // Risco máximo por trade (R$)
 input double   Perda_Diaria   = 150.0;     // Trava de perda diária (R$)
 input double   DD_Max         = 500.0;     // Drawdown máximo (R$) → pausa 5 dias
 input int      MaxTradesWIN   = 3;         // Máx. trades/dia no WIN
-input int      MaxTradesWDO   = 3;         // Máx. trades/dia no WDO
+input int      MaxTradesWDO   = 0;         // Máx. trades/dia no WDO (0=quarentena; ver backtest/relatorio)
 input int      Hora_Ini_1     = 9;         // Janela 1 início (hora)
 input int      Min_Ini_1      = 30;        // Janela 1 início (minuto)
 input int      Hora_Fim_1     = 12;        // Janela 1 fim (hora)
