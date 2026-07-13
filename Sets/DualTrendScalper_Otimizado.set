@@ -1,0 +1,49 @@
+; === SET FILE — DUAL TREND SCALPER — CONFIGURAÇÃO RECOMENDADA (pós-backtest) ===
+; Gerado a partir do estudo em /backtest (motor Python sobre dados-proxy).
+; Ver relatório completo: backtest/relatorio_backtest_winwdo.md
+;
+; RESUMO DA DECISÃO:
+;  - Sobre o proxy M5 fiel (^BVSP p/ WIN, USDBRL p/ WDO), os parâmetros
+;    ORIGINAIS já atendem a TODOS os critérios mínimos de viabilidade no
+;    portfólio combinado (PF 1.53, WR 45.8%, DD 3.9%, 120 trades).
+;  - O motor de WIN é robusto (PF ~3.5 no proxy M5). O WDO no proxy (USDBRL
+;    à vista, 24h) foi consistentemente perdedor (PF ~0.6) — provável artefato
+;    do proxy, NÃO do ativo real. Por prudência, WDO entra QUARENTENADO
+;    (MaxTradesWDO=0) até validação com dados reais de tick do WDOFUT.
+;  - A varredura no dataset estendido 1h "melhorou" as métricas in-sample,
+;    porém FALHOU no walk-forward (OOS PF 0.95). Esses ganhos foram descartados
+;    por overfitting. Mantemos, portanto, os parâmetros originais (robustos).
+;
+; AÇÃO PRÁTICA: rodar WIN-only em conta demo; habilitar WDO só após
+;               backtest com dados reais de futuros.
+
+Simbolo1=WINFUT
+Simbolo2=WDOFUT
+EMA_Rapida=9
+EMA_Lenta=21
+EMA_Tendencia=50
+MACD_Rapida=12
+MACD_Lenta=26
+MACD_Sinal=9
+ATR_Periodo=14
+ATR_Mult_SL=1.2
+RR_Ratio=2.0
+Risco_Reais=50.0
+Perda_Diaria=150.0
+DD_Max=500.0
+MaxTradesWIN=3
+MaxTradesWDO=0
+Hora_Ini_1=9
+Min_Ini_1=30
+Hora_Fim_1=12
+Min_Fim_1=0
+Hora_Ini_2=14
+Min_Ini_2=0
+Hora_Fim_2=16
+Min_Fim_2=30
+Hora_Fechamento=18
+Min_Fechamento=10
+UseTrailing=true
+UseBreakEven=true
+BE_Pct=0.30
+Trailing_Pct=0.50
