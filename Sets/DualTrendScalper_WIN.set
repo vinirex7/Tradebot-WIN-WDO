@@ -1,34 +1,52 @@
-; === SET FILE — DUAL TREND SCALPER — WIN (WINFUT) ===
-; Corretora: XP Investimentos | MT5
-; Última revisão: 2026-07-02
+; === SET FILE — DUAL TREND SCALPER v2.0 — WIN (WINFUT) ===
+; Ultima revisao: 2026-07-24
 
 Simbolo1=WINFUT
 Simbolo2=WDOFUT
 EMA_Rapida=9
 EMA_Lenta=21
 EMA_Tendencia=50
-MACD_Rapida=12
-MACD_Lenta=26
-MACD_Sinal=9
+MACD_R_WIN=12
+MACD_L_WIN=26
+MACD_S_WIN=9
+MACD_R_WDO=8
+MACD_L_WDO=21
+MACD_S_WDO=5
 ATR_Periodo=14
 ATR_Mult_SL=1.2
+ATR_Filtro_Pct=0.70
+RSI_Periodo=14
+RSI_Min_Compra=40.0
+RSI_Max_Venda=60.0
 RR_Ratio=2.0
 Risco_Reais=50.0
 Perda_Diaria=150.0
+Ganho_Diario=300.0
 DD_Max=500.0
+PausaDias=5
 MaxTradesWIN=3
 MaxTradesWDO=3
-Hora_Ini_1=9
-Min_Ini_1=30
-Hora_Fim_1=12
-Min_Fim_1=0
-Hora_Ini_2=14
-Min_Ini_2=0
-Hora_Fim_2=16
-Min_Fim_2=30
+WIN_H_Ini1=9
+WIN_M_Ini1=30
+WIN_H_Fim1=11
+WIN_M_Fim1=0
+WIN_H_Ini2=14
+WIN_M_Ini2=0
+WIN_H_Fim2=16
+WIN_M_Fim2=30
+WDO_H_Ini1=10
+WDO_M_Ini1=0
+WDO_H_Fim1=12
+WDO_M_Fim1=0
+WDO_H_Ini2=14
+WDO_M_Ini2=0
+WDO_H_Fim2=15
+WDO_M_Fim2=30
 Hora_Fechamento=18
 Min_Fechamento=10
 UseTrailing=true
 UseBreakEven=true
 BE_Pct=0.30
 Trailing_Pct=0.50
+LogEnabled=true
+LogFile=DTS_Log

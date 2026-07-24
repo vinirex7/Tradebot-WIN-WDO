@@ -1,46 +1,55 @@
-# Walk-Forward Testing — DUAL TREND SCALPER
+# Walk-Forward Testing — DualTrendScalper v2.0
 
-## Metodologia
+## Configuracao Recomendada
 
-O walk-forward divide o período histórico em janelas **IS (In-Sample)** para otimização e **OOS (Out-of-Sample)** para validação.
+| Parametro | Valor |
+|-----------|-------|
+| In-Sample | 18 meses |
+| Out-of-Sample | 6 meses |
+| Passes | >= 1000 (genetico) |
+| Criterio | Sharpe Ratio |
+| Minimos aceitaveis | PF >= 1.4 \| DD <= 15% \| Sharpe >= 0.8 \| WFE >= 0.50 |
 
-### Parâmetros otimizados
+## Parametros a Otimizar
 
-| Parâmetro      | Min   | Max   | Step |
-|----------------|-------|-------|------|
-| ATR_Mult_SL    | 0.8   | 2.0   | 0.2  |
-| RR_Ratio       | 1.5   | 3.0   | 0.5  |
-| EMA_Tendencia  | 34    | 100   | 8    |
-| EMA_Lenta      | 15    | 30    | 3    |
+### WINFUT
+- EMA_Rapida: 5-15 (step 1)
+- EMA_Lenta: 15-30 (step 1)
+- MACD_R_WIN: 8-16 (step 2)
+- MACD_L_WIN: 20-34 (step 2)
+- ATR_Mult_SL: 0.8-2.0 (step 0.2)
+- ATR_Filtro_Pct: 0.50-0.90 (step 0.10)
+- RSI_Min_Compra: 30-50 (step 5)
 
-### Janelas sugeridas (WINFUT — M5)
+### WDOFUT
+- MACD_R_WDO: 5-14 (step 1)
+- MACD_L_WDO: 15-30 (step 2)
+- MACD_S_WDO: 3-9 (step 1)
+- ATR_Mult_SL: 1.0-2.5 (step 0.2)
+- RSI_Max_Venda: 50-70 (step 5)
 
-| Rodada | IS (Otimização)         | OOS (Validação)         |
-|--------|-------------------------|-------------------------|
-| 1      | Jan/2024 – Jun/2024     | Jul/2024 – Set/2024     |
-| 2      | Jan/2024 – Set/2024     | Out/2024 – Dez/2024     |
-| 3      | Jan/2024 – Dez/2024     | Jan/2025 – Mar/2025     |
-| 4      | Jan/2024 – Mar/2025     | Abr/2025 – Jun/2025     |
-| 5      | Jan/2024 – Jun/2025     | Jul/2025 – Dez/2025     |
-| 6      | Jan/2024 – Dez/2025     | Jan/2026 – Jun/2026     |
+## Periodo de Dados
 
-### Critérios de aprovação (OOS)
+- **Backtest total:** 2023-01-02 a 2026-06-30
+- **In-sample:** 2023-01-02 a 2025-06-30
+- **Out-of-sample:** 2025-07-01 a 2026-06-30
 
-- Profit Factor ≥ 1.5
-- Taxa de acerto ≥ 45%
-- Drawdown máximo ≤ 15%
-- Mínimo 30 trades no período OOS
-- Fator de eficiência OOS/IS ≥ 0.7
+## Metricas de Avaliacao
 
-### Como executar no MT5
+1. Profit Factor >= 1.4
+2. Max Drawdown <= 15% do capital
+3. Sharpe Ratio >= 0.8
+4. Win Rate >= 45% (com RR 2:1 lucrativo a partir de 34%)
+5. Walk-Forward Efficiency (WFE) >= 0.50
 
-1. Abrir **Strategy Tester** (Ctrl+R)
-2. Selecionar EA: `DualTrendScalper`
-3. Modelo: **Every Tick Based on Real Ticks**
-4. Ativar **Optimization → Walk Forward**
-5. Configurar janelas IS/OOS conforme tabela acima
-6. Exportar resultado para `Tests/results/`
+## Como Executar no MT5
 
-## Métricas de referência (backtest completo Jan/2024–Jun/2026)
-
-Executar o backtest Python em `backtest/` para obter as métricas base antes de iniciar o walk-forward.
+```
+1. Abrir Strategy Tester (Ctrl+R)
+2. Expert: Experts/DualTrendScalper.mq5
+3. Deposito: BRL 50.000
+4. Modo: Every Tick (dados reais)
+5. Carregar BacktestConfig_WINFUT.ini ou BacktestConfig_WDOFUT.ini
+6. Optimization: Genetic algorithm
+7. Forward: Custom (ver datas acima)
+```
