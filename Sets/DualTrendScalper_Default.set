@@ -1,0 +1,35 @@
+; DualTrendScalper v2.0 — Parametros com faixas de otimizacao
+; Importar em: Strategy Tester > Inputs > Load
+; Formato: valor||min||max||step||otimizar(Y/N)
+
+Simbolo1=WINFUT
+Simbolo2=WDOFUT
+EMA_Rapida=9||5||15||1||Y
+EMA_Lenta=21||15||30||1||Y
+EMA_Tendencia=50||40||70||5||Y
+MACD_R_WIN=12||8||16||2||Y
+MACD_L_WIN=26||20||34||2||Y
+MACD_S_WIN=9||6||12||1||Y
+MACD_R_WDO=8||5||14||1||Y
+MACD_L_WDO=21||15||30||2||Y
+MACD_S_WDO=5||3||9||1||Y
+ATR_Periodo=14||10||20||2||N
+ATR_Mult_SL=1.2||0.8||2.0||0.2||Y
+ATR_Filtro_Pct=0.70||0.50||0.90||0.10||Y
+RSI_Periodo=14||10||20||2||N
+RSI_Min_Compra=40.0||30||50||5||Y
+RSI_Max_Venda=60.0||50||70||5||Y
+RR_Ratio=2.0||1.5||3.0||0.5||Y
+Risco_Reais=50.0
+Perda_Diaria=150.0
+Ganho_Diario=300.0
+DD_Max=500.0
+PausaDias=5
+MaxTradesWIN=3
+MaxTradesWDO=3
+UseTrailing=true
+UseBreakEven=true
+BE_Pct=0.30||0.20||0.50||0.10||N
+Trailing_Pct=0.50||0.40||0.70||0.10||N
+LogEnabled=true
+LogFile=DTS_Log
