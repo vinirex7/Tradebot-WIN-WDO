@@ -1,76 +1,122 @@
-# Tradebot WIN-WDO — DUAL TREND SCALPER v2.0
+# 🤖 Tradebot WIN-WDO — DUAL TREND SCALPER v2.0
 
-Bot de day trade automatizado para **WINFUT (Mini Indice)** e **WDOFUT (Mini Dolar)** na B3, via **MetaTrader 5**, vinculado a **XP Investimentos**.
+Bot de day trade automatizado para **WINFUT (Mini Índice)** e **WDOFUT (Mini Dólar)** na B3,
+via **MetaTrader 5** vinculado à **XP Investimentos**.
 
-## Estrategia: DUAL TREND SCALPER v2.0
+---
 
-- **Filosofia:** Tendencia intradiaria com filtro de momentum e volatilidade
-- **Timeframe principal:** M5 | **Filtro de tendencia:** M15
-- **Indicadores:** EMA 9/21/50 · MACD (independente por ativo) · ATR(14) · RSI(14)
-- **Gestao de risco:** Lote dinamico · Stop ATR · Break-even · Trailing stop · Gain Lock
-- **Capital minimo recomendado:** R$ 3.000-R$ 5.000
+## ⚡ Início Rápido — Clone and Run
 
-## Changelog v2.0 (vs v1.10)
+### Único pré-requisito
+Ter o **MetaTrader 5 da XP** instalado: https://www.xpi.com.br/plataformas/metatrader5/
 
-| # | Tipo | Descricao |
-|---|------|-----------|
-| FIX-1 | Critico | Handles criados uma vez em `OnInit()` — elimina overhead por tick |
-| FIX-2 | Critico | Pausa drawdown **persistente** via `GlobalVariable` (sobrevive a restart) |
-| FIX-3 | Critico | **Lote dinamico** pelo risco real em R$ por ativo (antes: fixo em 1 contrato) |
-| NEW-1 | Estrategia | **Filtro RSI(14)**: RSI >= 40 compra, RSI <= 60 venda |
-| NEW-2 | Estrategia | **MACD parametrizavel por simbolo** (WIN e WDO independentes) |
-| NEW-3 | Estrategia | **Janelas de horario independentes** por ativo |
-| NEW-4 | Estrategia | Filtro ATR elevado para **70% da media** (era 50%) |
-| NEW-5 | Estrategia | MACD usa **histograma crescente** (mais robusto) |
-| NEW-6 | Engenharia | **Log CSV estruturado** com todos os campos via `OnTradeTransaction` |
-| NEW-7 | Engenharia | **Gain Lock** diario configuravel (`Ganho_Diario`) |
+### 3 passos
 
-## Estrutura do Repositorio
-
-```
-Experts/
-  DualTrendScalper.mq5      # EA principal v2.0
-Include/
-  RiskManager.mqh           # Risco v2: lote dinamico + persistencia DD
-  SignalEngine.mqh          # Sinais v2: handles fixos + RSI + MACD/ativo
-  TimeFilter.mqh            # Horario v2: janelas independentes por simbolo
-  TradeLogger.mqh           # Logger CSV estruturado v2
-Sets/
-  DualTrendScalper_Default.set  # Params + faixas de otimizacao
-  DualTrendScalper_WIN.set      # Set otimizado WIN
-  DualTrendScalper_WDO.set      # Set otimizado WDO (MaxTradesWIN=0)
-Tests/
-  BacktestConfig_WINFUT.ini
-  BacktestConfig_WDOFUT.ini
-  Walkforward_Config.md
-docs/
-  SETUP_XP_MT5.md
+```bash
+# 1. Clonar o repositorio
+git clone https://github.com/vinirex7/Tradebot-WIN-WDO
+cd Tradebot-WIN-WDO
 ```
 
-## Inicio Rapido
+```
+# 2. Setup (executar UMA VEZ — clique direito > Executar como Administrador)
+scripts\setup.bat
+```
 
-1. Copie `Include/*.mqh` para `MQL5/Include/`
-2. Compile `Experts/DualTrendScalper.mq5` no MetaEditor
-3. Carregue com o set file correspondente no MT5
-4. Ative o AutoTrading
+```
+# 3. Rodar backtest
+scripts\run_backtest_WIN.bat      <- Backtest WINFUT
+scripts\run_backtest_WDO.bat      <- Backtest WDOFUT
+scripts\run_backtest_AMBOS.bat    <- WIN + WDO em sequencia
+```
 
-## Parametros Principais
+### O que o setup.bat faz automaticamente
+- ✅ Detecta onde o MT5 está instalado
+- ✅ Copia `DualTrendScalper.mq5` para `MQL5\Experts\`
+- ✅ Copia os 4 arquivos `.mqh` para `MQL5\Include\`
+- ✅ Compila o EA via `metaeditor64.exe /compile`
+- ✅ Cria as pastas `reports\` e `logs\`
+- ✅ Salva `scripts\config.bat` com os caminhos do seu PC (não vai para o git)
 
-| Parametro | WIN | WDO | Descricao |
-|-----------|-----|-----|----------|
-| MACD_R | 12 | 8 | MACD rapida (independente por ativo) |
-| MACD_L | 26 | 21 | MACD lenta |
-| MACD_S | 9 | 5 | MACD sinal |
-| ATR_Mult_SL | 1.2 | 1.5 | Multiplicador stop loss |
-| ATR_Filtro_Pct | 0.70 | 0.70 | ATR minimo (% media 20 barras) |
-| RSI_Min_Compra | 40 | 40 | RSI minimo para compra |
-| RSI_Max_Venda | 60 | 60 | RSI maximo para venda |
-| RR_Ratio | 2.0 | 2.0 | Relacao risco/retorno |
-| Risco_Reais | R$ 50 | R$ 50 | Risco maximo por operacao |
-| Perda_Diaria | R$ 150 | R$ 150 | Trava de perda diaria |
-| Ganho_Diario | R$ 300 | R$ 300 | Gain Lock diario |
-| DD_Max | R$ 500 | R$ 500 | Drawdown maximo (pausa 5d) |
+### Única ação manual necessária (feita uma vez após o setup)
+Abrir o MT5, fazer login na conta XP e baixar o histórico:
+```
+Tools > History Center > WINFUT > M5  > Download
+Tools > History Center > WINFUT > M15 > Download
+Tools > History Center > WDOFUT > M5  > Download
+Tools > History Center > WDOFUT > M15 > Download
+```
 
-## Aviso Legal
+---
 
-Este projeto tem finalidade educacional e experimental. Operacoes em mercados futuros envolvem risco de perda total do capital. Valide sempre com backtest extensivo antes de operar com capital real. Consulte um analista certificado (CNPI) antes de qualquer decisao de investimento.
+## 📁 Estrutura do Repositório
+
+```
+Tradebot-WIN-WDO/
+├── Experts/
+│   └── DualTrendScalper.mq5        # EA principal v2.0
+├── Include/
+│   ├── RiskManager.mqh             # Lote dinâmico + pausa DD persistente
+│   ├── SignalEngine.mqh            # EMA + MACD/ativo + RSI + ATR (handles fixos)
+│   ├── TimeFilter.mqh              # Janelas independentes WIN vs WDO
+│   └── TradeLogger.mqh             # Log CSV estruturado por operação
+├── Sets/
+│   ├── DualTrendScalper_Default.set
+│   ├── DualTrendScalper_WIN.set
+│   └── DualTrendScalper_WDO.set
+├── Tests/
+│   ├── BacktestConfig_WINFUT.ini
+│   ├── BacktestConfig_WDOFUT.ini
+│   ├── OnTester_Criterio.mq5
+│   ├── Walkforward_Config.md
+│   └── CHECKLIST_BACKTEST.md
+├── scripts/                        # <- PASTA PRINCIPAL DE AUTOMACAO
+│   ├── setup.bat                   # <- EXECUTAR PRIMEIRO (uma vez)
+│   ├── compile_ea.bat              # Recompila o EA
+│   ├── run_backtest_WIN.bat        # Backtest WINFUT
+│   ├── run_backtest_WDO.bat        # Backtest WDOFUT
+│   ├── run_backtest_AMBOS.bat      # WIN + WDO em sequencia
+│   └── config.bat                  # gerado pelo setup (nao vai pro git)
+├── docs/
+│   └── SETUP_XP_MT5.md
+├── reports/                        # gerado localmente (nao vai pro git)
+└── logs/                           # gerado localmente (nao vai pro git)
+```
+
+---
+
+## ⚙️ Estratégia v2.0
+
+| Parâmetro | WIN | WDO |
+|-----------|-----|-----|
+| Timeframe | M5 + filtro M15 | M5 + filtro M15 |
+| EMA rápida/lenta/tendência | 9 / 21 / 50 | 9 / 21 / 50 |
+| MACD | (12, 26, 9) | **(8, 21, 5)** |
+| ATR Mult SL | 1.2x | **1.5x** |
+| ATR Filtro | 70% média 20b | 70% média 20b |
+| RSI compra/venda | ≥40 / ≤60 | ≥40 / ≤60 |
+| RR Ratio | 2.0 | 2.0 |
+| Janela 1 | 09:30–11:00 | **10:00–12:00** |
+| Janela 2 | 14:00–16:30 | **14:00–15:30** |
+| Risco/trade | R$ 50 (dinâmico) | R$ 50 (dinâmico) |
+| Perda diária | R$ 150 | R$ 150 |
+| Gain Lock | R$ 300 | R$ 300 |
+
+---
+
+## 🎯 Critérios de Aprovação no Backtest
+
+| Métrica | Mínimo | Ideal |
+|---------|--------|-------|
+| Profit Factor | ≥ 1.4 | ≥ 1.8 |
+| Max Drawdown | ≤ 15% | ≤ 10% |
+| Sharpe Ratio | ≥ 0.8 | ≥ 1.2 |
+| Win Rate | ≥ 45% | ≥ 55% |
+| WFE (OOS/IS) | ≥ 0.50 | ≥ 0.65 |
+| Total Trades | ≥ 30 | ≥ 100 |
+
+---
+
+## ⚠️ Aviso Legal
+
+Este projeto tem finalidade educacional e experimental. Operações em mercados futuros envolvem risco de perda total do capital. Valide com backtest extensivo antes de operar com capital real. Consulte um analista certificado (CNPI) antes de qualquer decisão de investimento.
